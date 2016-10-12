@@ -1,6 +1,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <limits.h>
 #include <algorithm>
@@ -18,7 +19,7 @@
 using namespace cv;
 using namespace std;
 
-#define DEBUG 1
+#define DEBUG 3
 
 
 bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path);
@@ -33,11 +34,7 @@ int maxFlow(vector<vector<Edge> >& graph, int s, int t);
 
 int main()
 {
-	Mat image;
-	image = imread("test.jpg", IMREAD_COLOR); // Read the file
-	const int rows = image.rows;
-	const int cols = image.cols;
-	const int pixel_number = rows * cols;
+
 
 	if (DEBUG == 1){
 
@@ -77,12 +74,72 @@ int main()
 
 			clock_t start, stop;
 			start = clock();
-			cout << "The maximum possible flow is " << maxFlow(graph, 0, 5) << endl;;
+			cout << "The maximum possible flow is " << maxFlow(graph, 0, 5) << endl;
 			stop = clock();
 			double elapsed = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
 			cout << "Elapsed time: " << elapsed << endl;
 			n = n + 10;
 		}
+	}
+	else if (DEBUG == 3){
+		Mat image, dst;
+		image = imread("test.jpg", IMREAD_COLOR); // Read the file
+		pyrDown( image, dst, Size( 125,  125) );
+		cvtColor( dst, image, CV_BGR2GRAY );
+		const int rows = image.rows;
+		const int cols = image.cols;
+		const int pixel_number = rows * cols;
+		if (image.empty())                      // Check for invalid input
+		{
+			cout << "Could not open or find the image" << std::endl;
+			return 0;
+		}
+
+		vector<vector<Edge> > graph(pixel_number+2);  // first N pixel represent the pixels in the image,
+		                                              // second last vector is the source
+		                                              // last vector is the sink
+
+		for (int i = 0; i < rows; ++i){
+			for (int j = 0 ; j < cols; ++j){
+				int current_pixel = (int)image.at<uchar>(i,j);
+				int current_index = i * cols + j;
+				int neighbor_index;
+				int neighbor_pixel;
+
+				graph[pixel_number].push_back(Edge(current_index, current_pixel));
+				graph[pixel_number].push_back(Edge(current_index, 1 - current_pixel));
+
+				if (i != 0){
+					neighbor_index = (i - 1) * cols + j;
+					neighbor_pixel = (int)image.at<uchar>(i-1, j);
+					graph[current_index].push_back(Edge(neighbor_index, current_pixel != neighbor_pixel));
+				}
+				if (i != rows){
+					neighbor_index = (i + 1) * cols + j;
+					neighbor_pixel = (int)image.at<uchar>(i+1, j);
+					graph[current_index].push_back(Edge(neighbor_index, current_pixel != neighbor_pixel));
+
+				}
+				if (j != 0){
+					neighbor_index = i * cols + j - 1;
+					neighbor_pixel = (int)image.at<uchar>(i, j-1);
+					graph[current_index].push_back(Edge(neighbor_index, current_pixel != neighbor_pixel));
+				}
+				if (j != cols){
+					neighbor_index = i * cols + j + 1;
+					neighbor_pixel = (int)image.at<uchar>(i, j+1);
+					graph[current_index].push_back(Edge(neighbor_index, current_pixel != neighbor_pixel));
+				}				
+			}
+
+		}
+		cout << graph[29+63*125][0].weight() <<endl;
+
+		cout << "The maximum possible flow is " << maxFlow(graph, pixel_number, pixel_number-1) << endl;;
+
+		namedWindow("Display window", WINDOW_AUTOSIZE); // Create a window for display.
+		imshow("Display window", image);                // Show our image inside it.
+
 	}
 
 	
@@ -90,14 +147,7 @@ int main()
 	//vector<int> height(pixel_number, 0);
 	//vector<int> excess;
 
-	if (image.empty())                      // Check for invalid input
-	{
-		cout << "Could not open or find the image" << std::endl;
-		return 0;
-	}
 
-	namedWindow("Display window", WINDOW_AUTOSIZE); // Create a window for display.
-	imshow("Display window", image);                // Show our image inside it.
 
 	waitKey(0); // Wait for a keystroke in the window
 	return 0;
@@ -108,7 +158,7 @@ int main()
 
 /* given an adjacency matrix, a source vertex, and a sink vertex,
 return a path if there exists one from s to t*/
-bool BFS(vector<vector<Edge>>& graph, int s, int t, vector<int>& path){
+bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path){
 
 	const int vertex_count = graph.size();   // the number vertex in the graph
 
