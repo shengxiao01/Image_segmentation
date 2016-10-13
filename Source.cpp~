@@ -86,7 +86,7 @@ int main()
 	}
 	else if (DEBUG == 3){
 		Mat image, seg;
-		image = imread(".//test//test7.bmp", IMREAD_COLOR); // Read the file
+		image = imread("test6.bmp", IMREAD_COLOR); // Read the file
 		image.copyTo(seg);
 		cvtColor(image, image, CV_BGR2GRAY);
 		
@@ -100,9 +100,9 @@ int main()
 			return 0;
 		}
 
-		vector<vector<Edge> > graph(pixel_number, vector<Edge> (6));  // first N pixel represent the pixels in the image,
-		graph.push_back(vector<Edge> (pixel_number));   // Source vertex
-		graph.push_back(vector<Edge> (pixel_number));        // Sink vertex
+		vector<vector<Edge> > graph(pixel_number + 2);  // first N pixel represent the pixels in the image,
+		// second last vector is the source
+		// last vector is the sink
 
 		for (int i = 0; i < rows; ++i){
 
@@ -113,43 +113,39 @@ int main()
 				int neighbor_index;
 				int neighbor_pixel;
 
-				graph[pixel_number][current_index] = Edge(current_index, current_pixel);   // an edge from source
-				graph[current_index][5] = Edge(pixel_number, 0); // an edge from current pixel to source with 0 capacity
-				graph[current_index][0] = Edge(pixel_number + 1, abs(255 - current_pixel)); // an edge to sink
-				graph[pixel_number + 1][current_index] = Edge(current_index, 0);      // an edge from sink to current_pixel with 0 capacities  
+				graph[pixel_number].push_back(Edge(current_index, current_pixel));
+				graph[current_index].push_back(Edge(pixel_number + 1, abs(255 - current_pixel)));
 
 				if (i != 0){
 					neighbor_index = (i - 1) * cols + j;
 					neighbor_pixel = (int)image.at<uchar>(i - 1, j);
-					graph[current_index][1] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+					graph[current_index].push_back(Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
 				}
 				if (i != rows - 1){
 					neighbor_index = (i + 1) * cols + j;
 					neighbor_pixel = (int)image.at<uchar>(i + 1, j);
-					graph[current_index][2] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+					graph[current_index].push_back(Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
 				}
 				if (j != 0){
 					neighbor_index = i * cols + j - 1;
 					neighbor_pixel = (int)image.at<uchar>(i, j - 1);
-					graph[current_index][3] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+					graph[current_index].push_back(Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
 				}
 				if (j != cols - 1){
 					neighbor_index = i * cols + j + 1;
 					neighbor_pixel = (int)image.at<uchar>(i, j + 1);
-					graph[current_index][4] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+					graph[current_index].push_back(Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
 				}
 			}
 			
 		}
 
 		
-		//cout << graph[0][3].weight() << endl;
-
 		vector<vector<Edge> > residual_graph(graph);  // this is deep copy of a vector
 		cout << "The maximum possible flow is " << maxFlow(graph, pixel_number, pixel_number + 1, residual_graph) << endl;
 
 		vector<int> A;
-		findCut(residual_graph, pixel_number, A);
+		findCut(residual_graph, pixel_number - 1, A);
 
 		for (int i = 0; i < A.size(); ++i){
 			if (A[i] < pixel_number){
@@ -159,12 +155,12 @@ int main()
 
 		namedWindow("Segmentation", WINDOW_NORMAL); // Create a window for display.
 		imshow("Segmentation", seg);
-
 		namedWindow("Display window", WINDOW_NORMAL); // Create a window for display.
 		imshow("Display window", image);                // Show our image inside it.
 		waitKey(0); // Wait for a keystroke in the window
 
 	}
+
 
 	return 0;
 }
@@ -189,7 +185,7 @@ void findCut(vector<vector<Edge> >& graph, int s, vector<int>& A){
 		for (vector<Edge>::iterator it = graph[u].begin(); it != graph[u].end(); ++it){
 
 			int v = it->vertex();     //(u,v) is the current scanning edge
-			if ( it->weight() > 0 && visited[v] == false){
+			if (visited[v] == false){
 				q.push(v);
 				A.push_back(v);
 				visited[v] = true;
@@ -210,14 +206,13 @@ bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path){
 	visited[s] = true;
 	path[s] = -1;
 	while (!q.empty()){
-
 		int u = q.front();     // current scanning vertex
 		q.pop();
+
 		for (vector<Edge>::iterator it = graph[u].begin(); it != graph[u].end(); ++it){
 
 			int v = it->vertex();     //(u,v) is the current scanning edge
-			if (v < 0) {continue;}
-			if (visited[v] == false && it->weight() > 0){
+			if (visited[v] == false){
 				q.push(v);
 				path[v] = u;
 				visited[v] = true;
@@ -237,7 +232,7 @@ int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& r
 	int u, v;
 
 	while (BFS(residual_graph, s, t, path)){
- 		int path_flow = INT_MAX;
+		int path_flow = INT_MAX;
 		vector<Edge>::iterator it;
 		// find an augmenting path and calculate the flow
 		for (v = t; v != s; v = path[v]){
@@ -262,13 +257,25 @@ int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& r
 
 			it->change_weight(-path_flow);
 
-			it = residual_graph[v].begin();
+			if (it->weight() == 0){
 
-			while (it->vertex() != u){
-				++it;
+				residual_graph[u].erase(it);
 			}
 
-			it->change_weight(path_flow);
+			it = residual_graph[v].begin();
+
+			while (it != residual_graph[v].end()){
+				if (it->vertex() != u) ++it;
+				else break;
+			}
+
+			if (it == residual_graph[v].end()){
+				residual_graph[v].push_back(Edge(u, path_flow));
+			}
+			else{
+				it->change_weight(path_flow);
+			}
+
 		}
 		max_flow += path_flow;
 		cout << "Current max flow = " << max_flow << endl;

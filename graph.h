@@ -9,7 +9,7 @@ class Edge{
 	int d_weight;   // weight
 
 public:
-	Edge(int vertex, int weight) : d_weight(weight), d_vertex(vertex) {}
+	Edge(int vertex = 0, int weight = 0) : d_weight(weight), d_vertex(vertex) {}
 
 	int vertex() const { return d_vertex; }
 
