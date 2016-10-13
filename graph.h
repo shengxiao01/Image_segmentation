@@ -1,8 +1,4 @@
 
-
-
-
-
 class Edge{
 	int d_vertex;   // end vertex
 
@@ -19,3 +15,4 @@ public:
 		d_weight = d_weight + delta;
 	}
 };
+

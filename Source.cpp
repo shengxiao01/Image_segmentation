@@ -2,9 +2,11 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/ml.hpp>
 
 #include <limits.h>
 #include <algorithm>
+#include <cmath>
 
 #include <iostream>
 #include <string>
@@ -17,6 +19,7 @@
 #include <stdlib.h> 
 
 using namespace cv;
+using namespace cv::ml;
 using namespace std;
 
 #define DEBUG 3
@@ -24,14 +27,10 @@ using namespace std;
 
 bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path);
 int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& residual_graph);
-void findCut(vector<vector<Edge> >& graph, int s, vector<int>& A);
-
-/*class node {
-int value;
-vector<node*> neighbors;
-};*/
-
-
+vector<int> findCut(vector<vector<Edge> >& graph, int s);
+inline double neighbour_penality(double x, double y, double sigma);
+vector<vector<Edge> > buildGraph(Mat& image);
+void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
 
 int main()
 {
@@ -86,80 +85,39 @@ int main()
 	}
 	else if (DEBUG == 3){
 		Mat image, seg;
-		image = imread(".//test//test7.bmp", IMREAD_COLOR); // Read the file
+		image = imread(".//test//desert.jpg", IMREAD_COLOR); // Read the file
+		resize(image, image, Size(), 70/(double)image.rows, 50/(double)image.rows);
+
+
 		image.copyTo(seg);
 		cvtColor(image, image, CV_BGR2GRAY);
-		
-		
+
 		const int rows = image.rows;
 		const int cols = image.cols;
 		const int pixel_number = rows * cols;
+
 		if (image.empty())                      // Check for invalid input
 		{
 			cout << "Could not open or find the image" << std::endl;
 			return 0;
 		}
 
-		vector<vector<Edge> > graph(pixel_number, vector<Edge> (6));  // first N pixel represent the pixels in the image,
-		graph.push_back(vector<Edge> (pixel_number));   // Source vertex
-		graph.push_back(vector<Edge> (pixel_number));        // Sink vertex
-
-		for (int i = 0; i < rows; ++i){
-
-
-			for (int j = 0; j < cols; ++j){
-				int current_pixel = (int)image.at<uchar>(i, j);
-				int current_index = i * cols + j;
-				int neighbor_index;
-				int neighbor_pixel;
-
-				graph[pixel_number][current_index] = Edge(current_index, current_pixel);   // an edge from source
-				graph[current_index][5] = Edge(pixel_number, 0); // an edge from current pixel to source with 0 capacity
-				graph[current_index][0] = Edge(pixel_number + 1, abs(255 - current_pixel)); // an edge to sink
-				graph[pixel_number + 1][current_index] = Edge(current_index, 0);      // an edge from sink to current_pixel with 0 capacities  
-
-				if (i != 0){
-					neighbor_index = (i - 1) * cols + j;
-					neighbor_pixel = (int)image.at<uchar>(i - 1, j);
-					graph[current_index][1] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
-				}
-				if (i != rows - 1){
-					neighbor_index = (i + 1) * cols + j;
-					neighbor_pixel = (int)image.at<uchar>(i + 1, j);
-					graph[current_index][2] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
-				}
-				if (j != 0){
-					neighbor_index = i * cols + j - 1;
-					neighbor_pixel = (int)image.at<uchar>(i, j - 1);
-					graph[current_index][3] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
-				}
-				if (j != cols - 1){
-					neighbor_index = i * cols + j + 1;
-					neighbor_pixel = (int)image.at<uchar>(i, j + 1);
-					graph[current_index][4] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
-				}
-			}
-			
-		}
-
-		
-		//cout << graph[0][3].weight() << endl;
-
+		vector<vector<Edge> > graph = buildGraph(image);
 		vector<vector<Edge> > residual_graph(graph);  // this is deep copy of a vector
+
 		cout << "The maximum possible flow is " << maxFlow(graph, pixel_number, pixel_number + 1, residual_graph) << endl;
 
-		vector<int> A;
-		findCut(residual_graph, pixel_number, A);
+		vector<int> cut = findCut(residual_graph, pixel_number);
 
-		for (int i = 0; i < A.size(); ++i){
-			if (A[i] < pixel_number){
-				seg.at<Vec3b>((int)A[i] / cols, A[i] % cols) = Vec3b(125, 45, 178);
+		for (int i = 0; i < cut.size(); ++i){
+			if (cut[i] < pixel_number){
+				seg.at<Vec3b>((int)cut[i] / cols, cut[i] % cols) = Vec3b(125, 45, 178);
 			}
 		}
 
 		namedWindow("Segmentation", WINDOW_NORMAL); // Create a window for display.
 		imshow("Segmentation", seg);
-
+		
 		namedWindow("Display window", WINDOW_NORMAL); // Create a window for display.
 		imshow("Display window", image);                // Show our image inside it.
 		waitKey(0); // Wait for a keystroke in the window
@@ -170,9 +128,13 @@ int main()
 }
 
 
-
+inline double neighbour_penality(double x, double y, double sigma){
+	return exp(- pow((x - y), 2)/ (2* pow(sigma, 2)));
+}
 /* given an residual graph, a source vertex, find the cut*/
-void findCut(vector<vector<Edge> >& graph, int s, vector<int>& A){
+vector<int> findCut(vector<vector<Edge> >& graph, int s){
+
+	vector<int> cut;
 
 	const int vertex_count = graph.size();   // the number vertex in the graph
 
@@ -189,16 +151,16 @@ void findCut(vector<vector<Edge> >& graph, int s, vector<int>& A){
 		for (vector<Edge>::iterator it = graph[u].begin(); it != graph[u].end(); ++it){
 
 			int v = it->vertex();     //(u,v) is the current scanning edge
-			if ( it->weight() > 0 && visited[v] == false){
+			if (it->weight() > 0 && visited[v] == false){
 				q.push(v);
-				A.push_back(v);
+				cut.push_back(v);
 				visited[v] = true;
 			}
 		}
 	}
+	return cut;
 }
-/* given an adjacency matrix, a source vertex, and a sink vertex,
-return a path if there exists one from s to t*/
+/* given an adjacency matrix, a source vertex, and a sink vertex, return a path if there exists one from s to t*/
 bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path){
 
 	const int vertex_count = graph.size();   // the number vertex in the graph
@@ -216,7 +178,7 @@ bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path){
 		for (vector<Edge>::iterator it = graph[u].begin(); it != graph[u].end(); ++it){
 
 			int v = it->vertex();     //(u,v) is the current scanning edge
-			if (v < 0) {continue;}
+			if (v < 0) { continue; }
 			if (visited[v] == false && it->weight() > 0){
 				q.push(v);
 				path[v] = u;
@@ -230,14 +192,14 @@ bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path){
 int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& residual_graph){
 	const int vertex_count = graph.size();
 
-	
+
 	vector<int> path(vertex_count, -2);
 
 	int max_flow = 0;
 	int u, v;
 
 	while (BFS(residual_graph, s, t, path)){
- 		int path_flow = INT_MAX;
+		int path_flow = INT_MAX;
 		vector<Edge>::iterator it;
 		// find an augmenting path and calculate the flow
 		for (v = t; v != s; v = path[v]){
@@ -276,4 +238,74 @@ int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& r
 	}
 
 	return max_flow;
+}
+/* Build an adjacency matrix graph given an image*/
+vector<vector<Edge> > buildGraph(Mat& image){
+
+	Mat labels, probs, means;
+	vector<Mat> covs;
+	guassMixModel(image, labels, probs, means, covs);
+
+	probs.convertTo(probs, 8, 255, 0);
+
+	const int rows = image.rows;
+	const int cols = image.cols;
+	const int pixel_number = rows * cols;
+	vector<vector<Edge> > graph(pixel_number, vector<Edge>(6));  // first N pixel represent the pixels in the image,
+	graph.push_back(vector<Edge>(pixel_number));   // Source vertex
+	graph.push_back(vector<Edge>(pixel_number));        // Sink vertex
+
+	for (int i = 0; i < rows; ++i){
+
+		for (int j = 0; j < cols; ++j){
+			int current_pixel = (int)image.at<uchar>(i, j);
+			int current_index = i * cols + j;
+			int neighbor_index;
+			int neighbor_pixel;
+
+			graph[pixel_number][current_index] = Edge(current_index, (int)probs.at<uchar>(current_index, 0));   // an edge from source
+			graph[current_index][5] = Edge(pixel_number, 0); // an edge from current pixel to source with 0 capacity
+			graph[current_index][0] = Edge(pixel_number + 1, (int)probs.at<uchar>(current_index, 1)); // an edge to sink
+			graph[pixel_number + 1][current_index] = Edge(current_index, 0);      // an edge from sink to current_pixel with 0 capacities  
+
+			if (i != 0){
+				neighbor_index = (i - 1) * cols + j;
+				neighbor_pixel = (int)image.at<uchar>(i - 1, j);
+				graph[current_index][1] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+			}
+			if (i != rows - 1){
+				neighbor_index = (i + 1) * cols + j;
+				neighbor_pixel = (int)image.at<uchar>(i + 1, j);
+				graph[current_index][2] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+			}
+			if (j != 0){
+				neighbor_index = i * cols + j - 1;
+				neighbor_pixel = (int)image.at<uchar>(i, j - 1);
+				graph[current_index][3] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+			}
+			if (j != cols - 1){
+				neighbor_index = i * cols + j + 1;
+				neighbor_pixel = (int)image.at<uchar>(i, j + 1);
+				graph[current_index][4] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+			}
+		}
+
+	}
+
+	return graph;
+
+}
+void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs){
+
+	Mat samples = image.reshape(0, image.rows * image.cols);
+
+	Ptr<EM> em_model = EM::create();
+	em_model->setClustersNumber(2);
+	em_model->setCovarianceMatrixType(EM::COV_MAT_SPHERICAL);
+	em_model->setTermCriteria(TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 300, 0.1));
+	em_model->trainEM(samples, noArray(), labels, probs);
+
+	em_model->getCovs(covs);    // covariance matrices of each cluster
+
+	means = em_model->getMeans();  // means of each cluster
 }
