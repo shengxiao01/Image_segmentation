@@ -1,4 +1,4 @@
-#include <opencv2/core/core.hpp>
+﻿#include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -29,6 +29,7 @@ bool BFS(vector<vector<Edge> >& graph, int s, int t, vector<int>& path);
 int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& residual_graph);
 vector<int> findCut(vector<vector<Edge> >& graph, int s);
 inline double neighbour_penality(double x, double y, double sigma);
+double estimateNoise(Mat& image);
 vector<vector<Edge> > buildGraph(Mat& image);
 void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
 
@@ -85,9 +86,8 @@ int main()
 	}
 	else if (DEBUG == 3){
 		Mat image, seg;
-		image = imread(".//test//desert.jpg", IMREAD_COLOR); // Read the file
-		resize(image, image, Size(), 70/(double)image.rows, 50/(double)image.rows);
-
+		image = imread(".//test//statue.jpg", IMREAD_COLOR); // Read the file
+		resize(image, image, Size(), 100/(double)image.rows, 100/(double)image.rows);
 
 		image.copyTo(seg);
 		cvtColor(image, image, CV_BGR2GRAY);
@@ -101,7 +101,7 @@ int main()
 			cout << "Could not open or find the image" << std::endl;
 			return 0;
 		}
-
+		
 		vector<vector<Edge> > graph = buildGraph(image);
 		vector<vector<Edge> > residual_graph(graph);  // this is deep copy of a vector
 
@@ -117,7 +117,7 @@ int main()
 
 		namedWindow("Segmentation", WINDOW_NORMAL); // Create a window for display.
 		imshow("Segmentation", seg);
-		
+
 		namedWindow("Display window", WINDOW_NORMAL); // Create a window for display.
 		imshow("Display window", image);                // Show our image inside it.
 		waitKey(0); // Wait for a keystroke in the window
@@ -128,8 +128,19 @@ int main()
 }
 
 
-inline double neighbour_penality(double x, double y, double sigma){
-	return exp(- pow((x - y), 2)/ (2* pow(sigma, 2)));
+inline double neighbourPenality(int x, int y, double sigma){
+	return exp(-pow(((double)x - (double)y), 2) / (2 * pow(sigma, 2)));
+}
+/*Given a grayscale image, estimate its noise variance. Reference, J. Immerkær, “Fast Noise Variance Estimation”, Computer Vision and Image Understanding, Vol. 64, No. 2, pp. 300-302, Sep. 1996*/
+double estimateNoise(Mat& image){
+	Mat filter = (Mat_<double>(3,3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
+	Mat filtered_image;
+	filter2D(image, filtered_image, 64, filter, Point(-1, -1), 0, BORDER_REPLICATE);
+	filtered_image = abs(filtered_image);
+	double sigma = sum(filtered_image)[0];
+	const double PI = 3.141592653589793238462643383279502884;
+	sigma = sigma * sqrt(0.5 * PI) / (6 * (image.rows - 2) * (image.cols - 2));
+	return sigma;
 }
 /* given an residual graph, a source vertex, find the cut*/
 vector<int> findCut(vector<vector<Edge> >& graph, int s){
@@ -241,16 +252,23 @@ int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& r
 }
 /* Build an adjacency matrix graph given an image*/
 vector<vector<Edge> > buildGraph(Mat& image){
+	const int rows = image.rows;
+	const int cols = image.cols;
+	const int pixel_number = rows * cols;
+	const int PRECISION = 256;
+	const double alpha = 1;
+
 
 	Mat labels, probs, means;
 	vector<Mat> covs;
 	guassMixModel(image, labels, probs, means, covs);
 
-	probs.convertTo(probs, 8, 255, 0);
+	log(probs, probs);       // turn linear probability to logrithmic scale
+	probs = - PRECISION * probs;
+	double sigma = estimateNoise(image);
+	//probs.convertTo(probs, 8, 255, 0);
 
-	const int rows = image.rows;
-	const int cols = image.cols;
-	const int pixel_number = rows * cols;
+
 	vector<vector<Edge> > graph(pixel_number, vector<Edge>(6));  // first N pixel represent the pixels in the image,
 	graph.push_back(vector<Edge>(pixel_number));   // Source vertex
 	graph.push_back(vector<Edge>(pixel_number));        // Sink vertex
@@ -262,31 +280,35 @@ vector<vector<Edge> > buildGraph(Mat& image){
 			int current_index = i * cols + j;
 			int neighbor_index;
 			int neighbor_pixel;
-
-			graph[pixel_number][current_index] = Edge(current_index, (int)probs.at<uchar>(current_index, 0));   // an edge from source
+			int penality;
+			graph[pixel_number][current_index] = Edge(current_index, (int)probs.at<double>(current_index, 0));   // an edge from source
 			graph[current_index][5] = Edge(pixel_number, 0); // an edge from current pixel to source with 0 capacity
-			graph[current_index][0] = Edge(pixel_number + 1, (int)probs.at<uchar>(current_index, 1)); // an edge to sink
+			graph[current_index][0] = Edge(pixel_number + 1, (int)probs.at<double>(current_index, 1)); // an edge to sink
 			graph[pixel_number + 1][current_index] = Edge(current_index, 0);      // an edge from sink to current_pixel with 0 capacities  
 
 			if (i != 0){
 				neighbor_index = (i - 1) * cols + j;
 				neighbor_pixel = (int)image.at<uchar>(i - 1, j);
-				graph[current_index][1] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph[current_index][1] = (Edge(neighbor_index, penality));
 			}
 			if (i != rows - 1){
 				neighbor_index = (i + 1) * cols + j;
 				neighbor_pixel = (int)image.at<uchar>(i + 1, j);
-				graph[current_index][2] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph[current_index][2] = (Edge(neighbor_index, penality));
 			}
 			if (j != 0){
 				neighbor_index = i * cols + j - 1;
 				neighbor_pixel = (int)image.at<uchar>(i, j - 1);
-				graph[current_index][3] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph[current_index][3] = (Edge(neighbor_index, penality));
 			}
 			if (j != cols - 1){
 				neighbor_index = i * cols + j + 1;
 				neighbor_pixel = (int)image.at<uchar>(i, j + 1);
-				graph[current_index][4] = (Edge(neighbor_index, abs(current_pixel - neighbor_pixel)));
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph[current_index][4] = (Edge(neighbor_index, penality));
 			}
 		}
 
@@ -295,6 +317,7 @@ vector<vector<Edge> > buildGraph(Mat& image){
 	return graph;
 
 }
+/*Bi-cluster gaussian mixture model*/
 void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs){
 
 	Mat samples = image.reshape(0, image.rows * image.cols);
