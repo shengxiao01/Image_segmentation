@@ -14,9 +14,11 @@
 #include <queue>
 
 #include "graph.h"
+#include "PreflowPush.h"
 
-#include <time.h>
+#include <ctime>
 #include <stdlib.h> 
+#include <conio.h>
 
 using namespace cv;
 using namespace cv::ml;
@@ -32,6 +34,8 @@ inline double neighbour_penality(double x, double y, double sigma);
 double estimateNoise(Mat& image);
 vector<vector<Edge> > buildGraph(Mat& image);
 void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
+Graph buildGraph2(Mat& image);
+
 
 int main()
 {
@@ -39,6 +43,31 @@ int main()
 
 	if (DEBUG == 1){
 
+
+		Graph graph(6);
+
+		vector<vector<int> > graph0 = { { 0, 16, 13, 0, 0, 0 },
+		{ 0, 0, 10, 12, 0, 0 },
+		{ 0, 4, 0, 0, 14, 0 },
+		{ 0, 0, 9, 0, 0, 20 },
+		{ 0, 0, 0, 7, 0, 4 },
+		{ 0, 0, 0, 0, 0, 0 } };
+
+		for (int i = 0; i < 6; ++i){
+			for (int j = 0; j < 6; ++j){
+				graph.insert_edge(i, j, graph0[i][j]);
+			}
+		}
+
+		int t = graph.maxFlow(0, 5);
+		cout << t << endl;
+		vector<int> cut = graph.findCut(0);
+		for (int i = 0; i < cut.size(); ++i){
+			cout << cut[i] << "  ";
+		}
+		_getch();
+
+		/*
 		vector<vector<Edge> > graph(6);
 
 		graph[0].push_back(Edge(1, 16));
@@ -52,7 +81,7 @@ int main()
 		graph[4].push_back(Edge(3, 7));
 		graph[4].push_back(Edge(5, 4));
 		vector<vector<Edge> > residual_graph(graph);  // this is deep copy of a vector
-
+		*/
 
 		/*vector<vector<int> > graph = { { 0, 16, 13, 0, 0, 0 },
 		{ 0, 0, 10, 12, 0, 0 },
@@ -62,32 +91,14 @@ int main()
 		{ 0, 0, 0, 0, 0, 0 }
 		};*/
 
-		cout << "The maximum possible flow is " << maxFlow(graph, 0, 5, residual_graph) << endl;
+		//cout << "The maximum possible flow is " << maxFlow(graph, 0, 5, residual_graph) << endl;
 
 
-	}
-	else if (DEBUG == 2){
-		for (int n = 10; n < 101;){
-			int k = 500 * n;
-			vector<vector<Edge> > graph(k);
-			for (int i = 1; i < k * 5; ++i){
-				graph[int(i / 5)].push_back(Edge(rand() % k, 1));
-			}
-			vector<vector<Edge> > residual_graph(graph);  // this is deep copy of a vector
-
-			clock_t start, stop;
-			start = clock();
-			cout << "The maximum possible flow is " << maxFlow(graph, 0, 5, residual_graph) << endl;
-			stop = clock();
-			double elapsed = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-			cout << "Elapsed time: " << elapsed << endl;
-			n = n + 10;
-		}
 	}
 	else if (DEBUG == 3){
 		Mat image, seg;
 		image = imread(".//test//statue.jpg", IMREAD_COLOR); // Read the file
-		resize(image, image, Size(), 100/(double)image.rows, 100/(double)image.rows);
+		resize(image, image, Size(), 100 / (double)image.rows, 100 / (double)image.rows);
 
 		image.copyTo(seg);
 		cvtColor(image, image, CV_BGR2GRAY);
@@ -101,39 +112,58 @@ int main()
 			cout << "Could not open or find the image" << std::endl;
 			return 0;
 		}
-		
+
+		clock_t begin = clock();
+		Graph graph(pixel_number + 2);
+		graph = buildGraph2(image);
+		clock_t mid = clock();
+		int t = graph.maxFlow(pixel_number, pixel_number + 1);
+
+		vector<int> cut = graph.findCut(pixel_number);
+		clock_t end = clock();
+		double secs1 = double(mid - begin) / CLOCKS_PER_SEC;
+		double secs2 = double(end - mid) / CLOCKS_PER_SEC;
+		cout << "Time elapsed for graph bulding: " << secs1 << endl;
+		cout << "Time elapsed for max flow: " << secs2 << endl;
+		/*
+		clock_t begin = clock();
 		vector<vector<Edge> > graph = buildGraph(image);
+
 		vector<vector<Edge> > residual_graph(graph);  // this is deep copy of a vector
+		clock_t mid = clock();
 
 		cout << "The maximum possible flow is " << maxFlow(graph, pixel_number, pixel_number + 1, residual_graph) << endl;
 
 		vector<int> cut = findCut(residual_graph, pixel_number);
 
+		clock_t end = clock();
+		double secs1 = double(mid - begin) / CLOCKS_PER_SEC;
+		double secs2 = double(end - mid) / CLOCKS_PER_SEC;
+		cout << "Time elapsed for graph bulding: " << secs1 << endl;
+		cout << "Time elapsed for Ford Fulkerson: " << secs2 << endl;
+		*/
 		for (int i = 0; i < cut.size(); ++i){
 			if (cut[i] < pixel_number){
-				seg.at<Vec3b>((int)cut[i] / cols, cut[i] % cols) = Vec3b(125, 45, 178);
+			seg.at<Vec3b>((int)cut[i] / cols, cut[i] % cols) = Vec3b(125, 45, 178);
 			}
 		}
 
 		namedWindow("Segmentation", WINDOW_NORMAL); // Create a window for display.
 		imshow("Segmentation", seg);
-
+		
 		namedWindow("Display window", WINDOW_NORMAL); // Create a window for display.
 		imshow("Display window", image);                // Show our image inside it.
 		waitKey(0); // Wait for a keystroke in the window
-
 	}
-
 	return 0;
 }
-
 
 inline double neighbourPenality(int x, int y, double sigma){
 	return exp(-pow(((double)x - (double)y), 2) / (2 * pow(sigma, 2)));
 }
 /*Given a grayscale image, estimate its noise variance. Reference, J. Immerkær, “Fast Noise Variance Estimation”, Computer Vision and Image Understanding, Vol. 64, No. 2, pp. 300-302, Sep. 1996*/
 double estimateNoise(Mat& image){
-	Mat filter = (Mat_<double>(3,3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
+	Mat filter = (Mat_<double>(3, 3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
 	Mat filtered_image;
 	filter2D(image, filtered_image, 64, filter, Point(-1, -1), 0, BORDER_REPLICATE);
 	filtered_image = abs(filtered_image);
@@ -244,7 +274,7 @@ int maxFlow(vector<vector<Edge> >& graph, int s, int t, vector<vector<Edge> >& r
 			it->change_weight(path_flow);
 		}
 		max_flow += path_flow;
-		cout << "Current max flow = " << max_flow << endl;
+		//cout << "Current max flow = " << max_flow << endl;
 
 	}
 
@@ -264,7 +294,7 @@ vector<vector<Edge> > buildGraph(Mat& image){
 	guassMixModel(image, labels, probs, means, covs);
 
 	log(probs, probs);       // turn linear probability to logrithmic scale
-	probs = - PRECISION * probs;
+	probs = -PRECISION * probs;
 	double sigma = estimateNoise(image);
 	//probs.convertTo(probs, 8, 255, 0);
 
@@ -331,4 +361,70 @@ void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>&
 	em_model->getCovs(covs);    // covariance matrices of each cluster
 
 	means = em_model->getMeans();  // means of each cluster
+}
+
+Graph buildGraph2(Mat& image){
+	const int rows = image.rows;
+	const int cols = image.cols;
+	const int pixel_number = rows * cols;
+	const int PRECISION = 256;
+	const double alpha = 1;
+
+
+	Mat labels, probs, means;
+	vector<Mat> covs;
+	guassMixModel(image, labels, probs, means, covs);
+
+	log(probs, probs);       // turn linear probability to logrithmic scale
+	probs = -PRECISION * probs;
+	double sigma = estimateNoise(image);
+	//probs.convertTo(probs, 8, 255, 0);
+
+
+	Graph graph(pixel_number + 2);
+
+	for (int i = 0; i < rows; ++i){
+
+		for (int j = 0; j < cols; ++j){
+			int current_pixel = (int)image.at<uchar>(i, j);
+			int current_index = i * cols + j;
+			int neighbor_index;
+			int neighbor_pixel;
+			int penality;
+			graph.insert_edge(pixel_number, current_index, (int)probs.at<double>(current_index, 0));   // an edge from source
+			graph.insert_edge(current_index, pixel_number, 0);// an edge from current pixel to source with 0 capacity
+			graph.insert_edge(current_index, pixel_number + 1, (int)probs.at<double>(current_index, 1));// an edge to sink
+			graph.insert_edge(pixel_number + 1, current_index, 0); // an edge from sink to current_pixel with 0 capacities  
+
+
+			if (i != 0){
+				neighbor_index = (i - 1) * cols + j;
+				neighbor_pixel = (int)image.at<uchar>(i - 1, j);
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph.insert_edge(current_index, neighbor_index, penality);
+			}
+			if (i != rows - 1){
+				neighbor_index = (i + 1) * cols + j;
+				neighbor_pixel = (int)image.at<uchar>(i + 1, j);
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph.insert_edge(current_index, neighbor_index, penality);
+			}
+			if (j != 0){
+				neighbor_index = i * cols + j - 1;
+				neighbor_pixel = (int)image.at<uchar>(i, j - 1);
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph.insert_edge(current_index, neighbor_index, penality);
+			}
+			if (j != cols - 1){
+				neighbor_index = i * cols + j + 1;
+				neighbor_pixel = (int)image.at<uchar>(i, j + 1);
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				graph.insert_edge(current_index, neighbor_index, penality);
+			}
+		}
+
+	}
+
+	return graph;
+
 }

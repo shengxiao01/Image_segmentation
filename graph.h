@@ -15,4 +15,3 @@ public:
 		d_weight = d_weight + delta;
 	}
 };
-
