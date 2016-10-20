@@ -81,6 +81,8 @@ bool Graph::push(int u){
 			graph[v][u].r_weight += temp_flow;
 			graph[u].excess -= temp_flow;
 			graph[v].excess += temp_flow;
+
+			return true;
 		}
 	}
 	return false;
@@ -97,11 +99,29 @@ void Graph::relabel(int u){
 	graph[u].height = temp_height + 1;
 }
 
+bool Graph::discharge(int u){
+	while (graph[u].excess > 0){
+		for (auto it = graph[u].begin(); it != graph[u].end(); ++it){
+			int v = it->first;
+			if (it->second.r_weight > 0 && graph[u].height > graph[v].height){
+				int temp_flow = min(it->second.r_weight, graph[u].excess);
 
-// Find the max flow of the graph
+				it->second.r_weight -= temp_flow;
+				graph[v][u].r_weight += temp_flow;
+				graph[u].excess -= temp_flow;
+				graph[v].excess += temp_flow;
+
+			}
+		}
+		relabel(u);
+	}
+	return false;
+}
+// push relabel algorithm
 int Graph::maxFlow(int s, int t){
 	initialize(s);
 	int u = positiveExcessIdx(t);
+
 	while (u != -1){
 		if (!push(u)){
 			relabel(u);
@@ -109,6 +129,40 @@ int Graph::maxFlow(int s, int t){
 		u = positiveExcessIdx(t);
 	}
 	return graph[t].excess;
+}
+// relabel to front algorithm
+int Graph::maxFlow_rtf(int s, int t){
+	initialize(s);
+	int u = positiveExcessIdx(t);
+	list<int> active_vertex(graph.size() - 2);
+	int i = 0;
+	for (list<int>::iterator it = active_vertex.begin(); it != active_vertex.end(); ++it){
+		*it = i;
+		++i;
+	}
+	int p = 0;
+	for (list<int>::iterator it = active_vertex.begin(); it != active_vertex.end(); ){
+		int u = *it;
+		int height = graph[u].height;
+		discharge(u);
+		if (graph[u].height > height){
+			active_vertex.erase(it);
+			active_vertex.push_front(u);
+			it = active_vertex.begin();
+		}
+		++it;
+
+	}
+	return graph[t].excess;
+}
+
+void Graph::moveToFront(int i, int *A) {
+	int temp = A[i];
+	int n;
+	for (n = i; n > 0; n--){
+		A[n] = A[n - 1];
+	}
+	A[0] = temp;
 }
 
 // Find an s-t cut of the graph according to the residual flow

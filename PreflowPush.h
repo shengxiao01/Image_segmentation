@@ -5,6 +5,8 @@
 #include <utility>
 #include <limits.h>
 #include <queue>
+#include <list>
+
 
 
 using namespace std;
@@ -61,7 +63,13 @@ public:
 
 	void relabel(int u);
 
+	bool discharge(int u);
+
 	int maxFlow(int s, int t);
+
+	int maxFlow_rtf(int s, int t);
+
+	void Graph::moveToFront(int i, int *A);
 
 	vector<int> findCut(int s);
 };

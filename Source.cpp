@@ -117,7 +117,7 @@ int main()
 		Graph graph(pixel_number + 2);
 		graph = buildGraph2(image);
 		clock_t mid = clock();
-		int t = graph.maxFlow(pixel_number, pixel_number + 1);
+		int t = graph.maxFlow_rtf(pixel_number, pixel_number + 1);
 
 		vector<int> cut = graph.findCut(pixel_number);
 		clock_t end = clock();
