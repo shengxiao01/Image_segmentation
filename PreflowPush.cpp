@@ -3,29 +3,44 @@
 Vertex::Vertex(){
 	height = 0;
 	excess = 0;
+	edges.reserve(6);
 }
 Vertex::Vertex(int d_height, int d_excess){
 	height = d_height;
 	excess = d_excess;
+	edges.reserve(6);
 }
 
 void Vertex::insert_edge(int vertex, int weight){
-	edges[vertex] = Edge2{ weight, weight };
+	//edges[vertex] = Edge2{ weight, weight };
+	edges.push_back(make_pair(vertex, Edge2{ weight, weight }));
 }
 
 Edge2& Vertex::operator[](int vertex_idx){
-	return edges[vertex_idx];
+
+	vector<pair<int,Edge2>>::iterator it = lower_bound(edges.begin(), edges.end(),
+		make_pair(vertex_idx, Edge2{0,0}), 
+		[](const pair<int, Edge2>& lhs, const pair<int, Edge2>& rhs)      
+	{
+		return lhs.first < rhs.first;               
+	});
+	return it->second;
 }
 
-map<int, Edge2>::iterator Vertex::begin(){
+vector<pair<int, Edge2> >::iterator Vertex::begin(){
 	return edges.begin();
 }
 
-map<int, Edge2>::iterator Vertex::end(){
+vector<pair<int, Edge2> >::iterator Vertex::end(){
 	return edges.end();
 }
 
 
+void Vertex::sort_edge(){
+	sort(edges.begin(), edges.end(), [](pair<int, Edge2> &left, pair<int, Edge2> &right) {
+		return left.first < right.first;
+	});
+}
 
 Graph::Graph(int size){
 	graph = vector<Vertex>(size);
@@ -86,10 +101,6 @@ Graph::Graph(Mat& image){
 			int neighbor_index;
 			int neighbor_pixel;
 			int penality;
-			insert_edge(pixel_number, current_index, (int)probs.at<double>(current_index, 0));   // an edge from source
-			insert_edge(current_index, pixel_number, 0);// an edge from current pixel to source with 0 capacity
-			insert_edge(current_index, pixel_number + 1, (int)probs.at<double>(current_index, 1));// an edge to sink
-			insert_edge(pixel_number + 1, current_index, 0); // an edge from sink to current_pixel with 0 capacities  
 
 			if (i != rows - 1){
 				neighbor_index = (i + 1) * cols + j;
@@ -105,9 +116,22 @@ Graph::Graph(Mat& image){
 				insert_edge(current_index, neighbor_index, penality);
 				insert_edge(neighbor_index, current_index, penality);
 			}
+
+			insert_edge(pixel_number, current_index, (int)probs.at<double>(current_index, 0));   // an edge from source
+			insert_edge(current_index, pixel_number, 0);// an edge from current pixel to source with 0 capacity
+			insert_edge(current_index, pixel_number + 1, (int)probs.at<double>(current_index, 1));// an edge to sink
+			insert_edge(pixel_number + 1, current_index, 0); // an edge from sink to current_pixel with 0 capacities  
 		}
 
 	}
+
+	for (int i = 0; i < rows; ++i){
+		for (int j = 0; j < cols; ++j){
+			graph[i*cols + j].sort_edge();
+		}
+	}
+
+
 }
 
 

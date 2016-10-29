@@ -26,7 +26,8 @@ struct Edge2{
 class Vertex{
 private:
 
-	map<int, Edge2> edges;
+	//map<int, Edge2> edges;
+	vector<pair<int, Edge2> > edges;
 	int height;        // height of each vertex
 	int excess;        // excess flow of each vertex
 
@@ -40,9 +41,11 @@ public:
 
 	Edge2& operator[](int vertex_idx);
 
-	map<int, Edge2>::iterator begin();
+	vector<pair<int, Edge2> >::iterator begin();
 
-	map<int, Edge2>::iterator end();
+	vector<pair<int, Edge2> >::iterator end();
+
+	void sort_edge();
 
 	friend class Graph;
 
