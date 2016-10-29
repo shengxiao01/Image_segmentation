@@ -7,10 +7,15 @@
 #include <queue>
 #include <list>
 
-
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/ml.hpp>
 
 using namespace std;
-
+using namespace cv;
+using namespace cv::ml;
 
 struct Edge2{
 	int weight;   // original capacity
@@ -26,7 +31,7 @@ private:
 	int excess;        // excess flow of each vertex
 
 public:
-	
+
 	Vertex();
 
 	Vertex(int d_height, int d_excess);
@@ -50,6 +55,8 @@ private:
 public:
 	Graph(int size);
 
+	Graph(Mat& image);
+
 	void insert_edge(int start, int end, int weight);
 
 	void addFlow(int u, int v, int flow);
@@ -69,7 +76,10 @@ public:
 
 	int maxFlow_rtf(int s, int t);
 
-	void Graph::moveToFront(int i, int *A);
+	void moveToFront(int i, int *A);
 
 	vector<int> findCut(int s);
+	double estimateNoise(Mat& image);
+	inline double neighbourPenality(int x, int y, double sigma);
+	void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
 };

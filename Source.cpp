@@ -69,7 +69,6 @@ int main()
 
 		/*
 		vector<vector<Edge> > graph(6);
-
 		graph[0].push_back(Edge(1, 16));
 		graph[0].push_back(Edge(2, 13));
 		graph[1].push_back(Edge(2, 10));
@@ -114,8 +113,8 @@ int main()
 		}
 
 		clock_t begin = clock();
-		Graph graph(pixel_number + 2);
-		graph = buildGraph2(image);
+		Graph graph(image);
+		
 		clock_t mid = clock();
 		int t = graph.maxFlow_rtf(pixel_number, pixel_number + 1);
 
@@ -128,14 +127,10 @@ int main()
 		/*
 		clock_t begin = clock();
 		vector<vector<Edge> > graph = buildGraph(image);
-
 		vector<vector<Edge> > residual_graph(graph);  // this is deep copy of a vector
 		clock_t mid = clock();
-
 		cout << "The maximum possible flow is " << maxFlow(graph, pixel_number, pixel_number + 1, residual_graph) << endl;
-
 		vector<int> cut = findCut(residual_graph, pixel_number);
-
 		clock_t end = clock();
 		double secs1 = double(mid - begin) / CLOCKS_PER_SEC;
 		double secs2 = double(end - mid) / CLOCKS_PER_SEC;
@@ -144,13 +139,13 @@ int main()
 		*/
 		for (int i = 0; i < cut.size(); ++i){
 			if (cut[i] < pixel_number){
-			seg.at<Vec3b>((int)cut[i] / cols, cut[i] % cols) = Vec3b(125, 45, 178);
+				seg.at<Vec3b>((int)cut[i] / cols, cut[i] % cols) = Vec3b(125, 45, 178);
 			}
 		}
 
 		namedWindow("Segmentation", WINDOW_NORMAL); // Create a window for display.
 		imshow("Segmentation", seg);
-		
+
 		namedWindow("Display window", WINDOW_NORMAL); // Create a window for display.
 		imshow("Display window", image);                // Show our image inside it.
 		waitKey(0); // Wait for a keystroke in the window

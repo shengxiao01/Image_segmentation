@@ -1,4 +1,4 @@
-#include "PreflowPush.h"
+﻿#include "PreflowPush.h"
 
 Vertex::Vertex(){
 	height = 0;
@@ -30,6 +30,86 @@ map<int, Edge2>::iterator Vertex::end(){
 Graph::Graph(int size){
 	graph = vector<Vertex>(size);
 }
+void Graph::guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs){
+
+	Mat samples = image.reshape(0, image.rows * image.cols);
+
+	Ptr<EM> em_model = EM::create();
+	em_model->setClustersNumber(2);
+	em_model->setCovarianceMatrixType(EM::COV_MAT_SPHERICAL);
+	em_model->setTermCriteria(TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 300, 0.1));
+	em_model->trainEM(samples, noArray(), labels, probs);
+
+	em_model->getCovs(covs);    // covariance matrices of each cluster
+
+	means = em_model->getMeans();  // means of each cluster
+}
+
+inline double Graph::neighbourPenality(int x, int y, double sigma){
+	return exp(-pow(((double)x - (double)y), 2) / (2 * pow(sigma, 2)));
+}
+/*Given a grayscale image, estimate its noise variance. Reference, J. Immerkær, “Fast Noise Variance Estimation”, Computer Vision and Image Understanding, Vol. 64, No. 2, pp. 300-302, Sep. 1996*/
+double Graph::estimateNoise(Mat& image){
+	Mat filter = (Mat_<double>(3, 3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
+	Mat filtered_image;
+	filter2D(image, filtered_image, 64, filter, Point(-1, -1), 0, BORDER_REPLICATE);
+	filtered_image = abs(filtered_image);
+	double sigma = sum(filtered_image)[0];
+	const double PI = 3.141592653589793238462643383279502884;
+	sigma = sigma * sqrt(0.5 * PI) / (6 * (image.rows - 2) * (image.cols - 2));
+	return sigma;
+}
+Graph::Graph(Mat& image){
+	const int rows = image.rows;
+	const int cols = image.cols;
+	const int pixel_number = rows * cols;
+	const int PRECISION = 256;
+	const double alpha = 1;
+
+
+	Mat labels, probs, means;
+	vector<Mat> covs;
+	guassMixModel(image, labels, probs, means, covs);
+
+	log(probs, probs);       // turn linear probability to logrithmic scale
+	probs = -PRECISION * probs;
+	double sigma = estimateNoise(image);
+	//probs.convertTo(probs, 8, 255, 0);
+
+	graph = vector<Vertex>(pixel_number + 2);
+
+	for (int i = 0; i < rows; ++i){
+
+		for (int j = 0; j < cols; ++j){
+			int current_pixel = (int)image.at<uchar>(i, j);
+			int current_index = i * cols + j;
+			int neighbor_index;
+			int neighbor_pixel;
+			int penality;
+			insert_edge(pixel_number, current_index, (int)probs.at<double>(current_index, 0));   // an edge from source
+			insert_edge(current_index, pixel_number, 0);// an edge from current pixel to source with 0 capacity
+			insert_edge(current_index, pixel_number + 1, (int)probs.at<double>(current_index, 1));// an edge to sink
+			insert_edge(pixel_number + 1, current_index, 0); // an edge from sink to current_pixel with 0 capacities  
+
+			if (i != rows - 1){
+				neighbor_index = (i + 1) * cols + j;
+				neighbor_pixel = (int)image.at<uchar>(i + 1, j);
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				insert_edge(current_index, neighbor_index, penality);
+				insert_edge(neighbor_index, current_index, penality);
+			}
+			if (j != cols - 1){
+				neighbor_index = i * cols + j + 1;
+				neighbor_pixel = (int)image.at<uchar>(i, j + 1);
+				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
+				insert_edge(current_index, neighbor_index, penality);
+				insert_edge(neighbor_index, current_index, penality);
+			}
+		}
+
+	}
+}
+
 
 void Graph::insert_edge(int start, int end, int weight){
 	graph[start].insert_edge(end, weight);
@@ -141,7 +221,7 @@ int Graph::maxFlow_rtf(int s, int t){
 		++i;
 	}
 	int p = 0;
-	for (list<int>::iterator it = active_vertex.begin(); it != active_vertex.end(); ){
+	for (list<int>::iterator it = active_vertex.begin(); it != active_vertex.end();){
 		int u = *it;
 		int height = graph[u].height;
 		discharge(u);
