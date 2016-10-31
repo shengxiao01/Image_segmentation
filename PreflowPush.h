@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <queue>
 #include <list>
+#include <ctime>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -58,7 +59,7 @@ private:
 public:
 	Graph(int size);
 
-	Graph(Mat& image);
+	Graph(Mat& image, const int PRECISION = 256, const double alpha = 1);
 
 	void insert_edge(int start, int end, int weight);
 

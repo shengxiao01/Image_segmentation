@@ -114,7 +114,7 @@ int main()
 
 		clock_t begin = clock();
 		Graph graph(image);
-		
+
 		clock_t mid = clock();
 		int t = graph.maxFlow_rtf(pixel_number, pixel_number + 1);
 

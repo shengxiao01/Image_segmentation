@@ -18,11 +18,11 @@ void Vertex::insert_edge(int vertex, int weight){
 
 Edge2& Vertex::operator[](int vertex_idx){
 
-	vector<pair<int,Edge2>>::iterator it = lower_bound(edges.begin(), edges.end(),
-		make_pair(vertex_idx, Edge2{0,0}), 
-		[](const pair<int, Edge2>& lhs, const pair<int, Edge2>& rhs)      
+	vector<pair<int, Edge2>>::iterator it = lower_bound(edges.begin(), edges.end(),
+		make_pair(vertex_idx, Edge2{ 0, 0 }),
+		[](const pair<int, Edge2>& lhs, const pair<int, Edge2>& rhs)
 	{
-		return lhs.first < rhs.first;               
+		return lhs.first < rhs.first;
 	});
 	return it->second;
 }
@@ -74,12 +74,10 @@ double Graph::estimateNoise(Mat& image){
 	sigma = sigma * sqrt(0.5 * PI) / (6 * (image.rows - 2) * (image.cols - 2));
 	return sigma;
 }
-Graph::Graph(Mat& image){
+Graph::Graph(Mat& image, const int PRECISION, const double alpha){
 	const int rows = image.rows;
 	const int cols = image.cols;
 	const int pixel_number = rows * cols;
-	const int PRECISION = 256;
-	const double alpha = 1;
 
 
 	Mat labels, probs, means;
@@ -133,7 +131,6 @@ Graph::Graph(Mat& image){
 
 
 }
-
 
 void Graph::insert_edge(int start, int end, int weight){
 	graph[start].insert_edge(end, weight);
@@ -194,29 +191,50 @@ bool Graph::push(int u){
 
 void Graph::relabel(int u){
 	int temp_height = INT_MAX;
-	for (auto it = graph[u].begin(); it != graph[u].end(); ++it){
-		int v = it->first;
-		if (it->second.r_weight > 0 && temp_height > graph[v].height){
+	int sz = graph[u].edges.size();
+
+	for (int i = 0; i < sz; ++i){
+		int v = graph[u].edges[i].first;
+		if (graph[u].edges[i].second.r_weight > 0 && temp_height > graph[v].height){
 			temp_height = graph[v].height;
 		}
 	}
+
+	//for (auto it = graph[u].begin(); it != graph[u].end(); ++it){
+	//	int v = it->first;
+	//	if (it->second.r_weight > 0 && temp_height > graph[v].height){
+	//		temp_height = graph[v].height;
+	//	}
+	//}
 	graph[u].height = temp_height + 1;
 }
 
 bool Graph::discharge(int u){
 	while (graph[u].excess > 0){
-		for (auto it = graph[u].begin(); it != graph[u].end(); ++it){
-			int v = it->first;
-			if (it->second.r_weight > 0 && graph[u].height > graph[v].height){
-				int temp_flow = min(it->second.r_weight, graph[u].excess);
+		int sz = graph[u].edges.size();
+		for (int i = 0; i < sz; ++i){
+			int v = graph[u].edges[i].first;
+			if (graph[u].edges[i].second.r_weight > 0 && graph[u].height > graph[v].height){
+				int temp_flow = min(graph[u].edges[i].second.r_weight, graph[u].excess);
 
-				it->second.r_weight -= temp_flow;
+				graph[u].edges[i].second.r_weight -= temp_flow;
 				graph[v][u].r_weight += temp_flow;
 				graph[u].excess -= temp_flow;
 				graph[v].excess += temp_flow;
-
 			}
 		}
+		//for (auto it = graph[u].begin(); it != graph[u].end(); ++it){
+		//	int v = it->first;
+		//	if (it->second.r_weight > 0 && graph[u].height > graph[v].height){
+		//		int temp_flow = min(it->second.r_weight, graph[u].excess);
+
+		//		it->second.r_weight -= temp_flow;
+		//		graph[v][u].r_weight += temp_flow;
+		//		graph[u].excess -= temp_flow;
+		//		graph[v].excess += temp_flow;
+
+		//	}
+		//}
 		relabel(u);
 	}
 	return false;
@@ -238,25 +256,28 @@ int Graph::maxFlow(int s, int t){
 int Graph::maxFlow_rtf(int s, int t){
 	initialize(s);
 	int u = positiveExcessIdx(t);
-	list<int> active_vertex(graph.size() - 2);
-	int i = 0;
-	for (list<int>::iterator it = active_vertex.begin(); it != active_vertex.end(); ++it){
-		*it = i;
-		++i;
-	}
-	int p = 0;
-	for (list<int>::iterator it = active_vertex.begin(); it != active_vertex.end();){
-		int u = *it;
-		int height = graph[u].height;
-		discharge(u);
-		if (graph[u].height > height){
-			active_vertex.erase(it);
-			active_vertex.push_front(u);
-			it = active_vertex.begin();
-		}
-		++it;
 
+	
+	vector<int> active_vertex(graph.size() - 2);
+	int sz = active_vertex.size();
+	for (int i = sz - 1; i != -1; --i){
+		active_vertex[i] = sz - 1 - i;       // store the active vertex index backwards in a vector<int>
 	}
+
+	for (int i = sz - 1; i != -1;){
+		int u = active_vertex[i];
+		int height = graph[u].height;
+
+		discharge(u);
+
+		if (graph[u].height > height){
+			active_vertex.erase(active_vertex.begin() + i);
+			active_vertex.push_back(u);
+			i = sz - 3;
+		}
+		--i;
+	}
+
 	return graph[t].excess;
 }
 
