@@ -95,12 +95,13 @@ int main()
 
 	}
 	else if (DEBUG == 3){
-		Mat image, seg;
-		image = imread(".//test//statue.jpg", IMREAD_COLOR); // Read the file
+		Mat image;
+		image = imread(".//test//desert.jpg", IMREAD_COLOR); // Read the file
 		resize(image, image, Size(), 100 / (double)image.rows, 100 / (double)image.rows);
 
-		image.copyTo(seg);
+		//image.copyTo(seg);
 		cvtColor(image, image, CV_BGR2GRAY);
+		Mat seg(image.rows, image.cols, CV_8UC3, Vec3b(0, 0, 0));
 
 		const int rows = image.rows;
 		const int cols = image.cols;
@@ -113,7 +114,7 @@ int main()
 		}
 
 		clock_t begin = clock();
-		Graph graph(image);
+		Graph graph(image,256,00.5);
 
 		clock_t mid = clock();
 		int t = graph.maxFlow_rtf(pixel_number, pixel_number + 1);
@@ -139,9 +140,17 @@ int main()
 		*/
 		for (int i = 0; i < cut.size(); ++i){
 			if (cut[i] < pixel_number){
-				seg.at<Vec3b>((int)cut[i] / cols, cut[i] % cols) = Vec3b(125, 45, 178);
+				seg.at<Vec3b>((int)cut[i] / cols, cut[i] % cols) = Vec3b(255,255,255);
 			}
 		}
+
+		Mat ele = getStructuringElement(MORPH_RECT, Size(3, 3));
+		
+		dilate(seg, seg, ele);
+		erode(seg, seg, ele);
+		
+		erode(seg, seg, ele);
+		dilate(seg, seg, ele);
 
 		namedWindow("Segmentation", WINDOW_NORMAL); // Create a window for display.
 		imshow("Segmentation", seg);

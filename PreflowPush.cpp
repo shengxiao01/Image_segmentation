@@ -61,17 +61,22 @@ void Graph::guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vecto
 }
 
 inline double Graph::neighbourPenality(int x, int y, double sigma){
-	return exp(-pow(((double)x - (double)y), 2) / (2 * pow(sigma, 2)));
+	//cout << "x: " << x << " y: " << y << " sigma: " << sigma << endl;
+	return exp(-pow(((double)x - (double)y), 2) / ( pow(sigma, 2)));
+	//return exp(-pow(((double)x - (double)y), 2) / 3);
 }
-/*Given a grayscale image, estimate its noise variance. Reference, J. Immerkær, “Fast Noise Variance Estimation”, Computer Vision and Image Understanding, Vol. 64, No. 2, pp. 300-302, Sep. 1996*/
+
 double Graph::estimateNoise(Mat& image){
-	Mat filter = (Mat_<double>(3, 3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
-	Mat filtered_image;
-	filter2D(image, filtered_image, 64, filter, Point(-1, -1), 0, BORDER_REPLICATE);
-	filtered_image = abs(filtered_image);
-	double sigma = sum(filtered_image)[0];
-	const double PI = 3.141592653589793238462643383279502884;
-	sigma = sigma * sqrt(0.5 * PI) / (6 * (image.rows - 2) * (image.cols - 2));
+	Mat x_filter = (Mat_<double>(2, 1) << 1, -1);
+	Mat y_filter = (Mat_<double>(1, 2) << 1, -1);
+	Mat x_grad, y_grad;
+	filter2D(image, x_grad, 64, x_filter, Point(-1, -1), 0, BORDER_REPLICATE);
+	filter2D(image, y_grad, 64, y_filter, Point(-1, -1), 0, BORDER_REPLICATE);
+	x_grad = abs(x_grad);
+	y_grad = abs(y_grad);
+	double sigma = sum(x_grad + y_grad)[0];
+	sigma = sigma / (2*image.rows*image.cols);
+	
 	return sigma;
 }
 Graph::Graph(Mat& image, const int PRECISION, const double alpha){
@@ -88,6 +93,15 @@ Graph::Graph(Mat& image, const int PRECISION, const double alpha){
 	probs = -PRECISION * probs;
 	double sigma = estimateNoise(image);
 	//probs.convertTo(probs, 8, 255, 0);
+	double min, max;
+	minMaxLoc(probs, &min, &max);
+	probs = (probs - min) * (256/(max-min));
+
+	Mat display;
+	probs.convertTo(display, CV_8UC1, 255.0, 0);
+	//applyColorMap(display, display, cv::COLORMAP_JET);
+	//imshow("imagesc", display);
+
 
 	graph = vector<Vertex>(pixel_number + 2);
 
@@ -119,6 +133,8 @@ Graph::Graph(Mat& image, const int PRECISION, const double alpha){
 			insert_edge(current_index, pixel_number, 0);// an edge from current pixel to source with 0 capacity
 			insert_edge(current_index, pixel_number + 1, (int)probs.at<double>(current_index, 1));// an edge to sink
 			insert_edge(pixel_number + 1, current_index, 0); // an edge from sink to current_pixel with 0 capacities  
+
+			//cout << (int)probs.at<double>(current_index, 0) << "  " << PRECISION * alpha *neighbourPenality(current_pixel, neighbor_pixel, sigma) << "  " << alpha <<endl;
 		}
 
 	}
