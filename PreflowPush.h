@@ -55,9 +55,10 @@ public:
 class Graph{
 private:
 	vector<Vertex> graph;
+	int graph_size;
 
 public:
-	Graph(int size);
+	Graph(int d_size);
 
 	Graph(Mat& image, const int PRECISION = 256, const double alpha = 1);
 
@@ -76,14 +77,15 @@ public:
 
 	bool discharge(int u);
 
-	int maxFlow(int s, int t);
+	int maxFlow_pr(int s, int t);
 
 	int maxFlow_rtf(int s, int t);
 
 	void moveToFront(int i, int *A);
+	int maxFlow_pr_gap(int s, int t);
 
 	vector<int> findCut(int s);
 	double estimateNoise(Mat& image);
-	inline double neighbourPenality(int x, int y, double sigma);
+	inline double neighbourPenality(Vec3b x, Vec3b y, double sigma);
 	void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
 };
