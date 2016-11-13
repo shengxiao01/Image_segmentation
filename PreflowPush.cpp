@@ -63,10 +63,10 @@ void Graph::guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vecto
 
 inline double Graph::neighbourPenality(Vec3b x, Vec3b y, double sigma){
 	//cout << "x: " << x << " y: " << y << " sigma: " << sigma << endl;
-	double sqrt_sum = pow(((double)x[0] - (double)y[0]), 2) 
-		            + pow(((double)x[1] - (double)y[1]), 2) 
-					+ pow(((double)x[2] - (double)y[2]), 2);
-	return exp(-sqrt_sum / ( 3 * pow(sigma, 2)));
+	double sqrt_sum = pow(((double)x[0] - (double)y[0]), 2)
+		+ pow(((double)x[1] - (double)y[1]), 2)
+		+ pow(((double)x[2] - (double)y[2]), 2);
+	return exp(-sqrt_sum / (3 * pow(sigma, 2)));
 	//return exp(-pow(((double)x - (double)y), 2) / 3);
 }
 
@@ -79,8 +79,8 @@ double Graph::estimateNoise(Mat& image){
 	x_grad = abs(x_grad);
 	y_grad = abs(y_grad);
 	double sigma = sum(x_grad + y_grad)[0];
-	sigma = sigma / (2*image.rows*image.cols);
-	
+	sigma = sigma / (2 * image.rows*image.cols);
+
 	return sigma;
 }
 Graph::Graph(Mat& image, const int PRECISION, const double alpha){
@@ -99,41 +99,41 @@ Graph::Graph(Mat& image, const int PRECISION, const double alpha){
 	//probs.convertTo(probs, 8, 255, 0);
 	double min, max;
 	minMaxLoc(probs, &min, &max);
-	probs = (probs - min) * (256/(max-min));
+	probs = (probs - min) * (256 / (max - min));
 
 	Mat display;
 	probs.convertTo(display, CV_8UC1, 255.0, 0);
 	//applyColorMap(display, display, cv::COLORMAP_JET);
 	//imshow("imagesc", display);
 
-	
+
 	graph = vector<Vertex>(pixel_number + 2);
 	graph_size = graph.size();
 
 	for (int i = 0; i < rows; ++i){
 
 		for (int j = 0; j < cols; ++j){
-			
+
 			Vec3b current_pixel = image.at<Vec3b>(i, j);
-			
+
 			int current_index = i * cols + j;
 			int neighbor_index;
 			Vec3b neighbor_pixel;
 			int penality;
-			
+
 			if (i != rows - 1){
 				neighbor_index = (i + 1) * cols + j;
 				neighbor_pixel = image.at<Vec3b>(i + 1, j);
-				
+
 				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
 				insert_edge(current_index, neighbor_index, penality);
 				insert_edge(neighbor_index, current_index, penality);
 			}
 			if (j != cols - 1){
-				
+
 				neighbor_index = i * cols + j + 1;
 				neighbor_pixel = image.at<Vec3b>(i, j + 1);
-				
+
 				penality = (int)PRECISION * alpha * neighbourPenality(current_pixel, neighbor_pixel, sigma);
 				insert_edge(current_index, neighbor_index, penality);
 				insert_edge(neighbor_index, current_index, penality);
@@ -143,8 +143,8 @@ Graph::Graph(Mat& image, const int PRECISION, const double alpha){
 			insert_edge(current_index, pixel_number, 0);// an edge from current pixel to source with 0 capacity
 			insert_edge(current_index, pixel_number + 1, (int)probs.at<double>(current_index, 1));// an edge to sink
 			insert_edge(pixel_number + 1, current_index, 0); // an edge from sink to current_pixel with 0 capacities  
-			
-			
+
+
 			//cout << (int)probs.at<double>(current_index, 0) << "  " << PRECISION * alpha *neighbourPenality(current_pixel, neighbor_pixel, sigma) << "  " << alpha <<endl;
 		}
 
@@ -191,11 +191,32 @@ void Graph::initialize(int source){
 
 int Graph::positiveExcessIdx(int t){
 	for (int i = 0; i < graph_size; ++i){
-		if (graph[i].excess > 0 &&i != t){
+		if (graph[i].excess > 0 && i != t){
 			return i;
 		}
 	}
 	return -1;
+}
+
+int Graph::ActiveNodeIdx(int t){
+	for (int i = 0; i < graph_size; ++i){
+		if (graph[i].excess > 0 && graph[i].height < graph_size && i != t){
+			return i;
+		}
+	}
+	return -1;
+}
+
+
+vector<int> Graph::Cut(){
+	vector<int> cut;
+
+	for (int i = 0; i < graph_size - 2; ++i){
+		if (graph[i].height >= graph_size){
+			cut.push_back(i);
+		}
+	}
+	return cut;
 }
 
 bool Graph::push(int u){
@@ -230,11 +251,22 @@ void Graph::relabel(int u){
 }
 
 bool Graph::discharge(int u){
+	
+	int i = 0;
+	int sz = graph[u].edges.size();
+	int temp_height = INT_MAX;
+
 	while (graph[u].excess > 0){
-		int sz = graph[u].edges.size();
-		for (int i = 0; i < sz; ++i){
+		
+		if (i == sz){
+			relabel(u);
+			i = 0;
+		}
+
+		else{
 			int v = graph[u].edges[i].first;
-			if (graph[u].edges[i].second.r_weight > 0 && graph[u].height > graph[v].height){
+			// push flow 
+			if (graph[u].edges[i].second.r_weight > 0 && graph[u].height == graph[v].height + 1){
 				int temp_flow = min(graph[u].edges[i].second.r_weight, graph[u].excess);
 
 				graph[u].edges[i].second.r_weight -= temp_flow;
@@ -242,21 +274,10 @@ bool Graph::discharge(int u){
 				graph[u].excess -= temp_flow;
 				graph[v].excess += temp_flow;
 			}
-		}
-		//for (auto it = graph[u].begin(); it != graph[u].end(); ++it){
-		//	int v = it->first;
-		//	if (it->second.r_weight > 0 && graph[u].height > graph[v].height){
-		//		int temp_flow = min(it->second.r_weight, graph[u].excess);
-
-		//		it->second.r_weight -= temp_flow;
-		//		graph[v][u].r_weight += temp_flow;
-		//		graph[u].excess -= temp_flow;
-		//		graph[v].excess += temp_flow;
-
-		//	}
-		//}
-		relabel(u);
+			++i;
+		}		
 	}
+	
 	return false;
 }
 // push relabel algorithm
@@ -265,15 +286,16 @@ int Graph::maxFlow_pr(int s, int t){
 	int u = positiveExcessIdx(t);
 
 	while (u != -1){
-		cout << "heihgt: " << graph[u].height << endl;
-		if (!push(u)){
-			relabel(u);
-		}		
+		//if (!push(u)){
+		//	relabel(u);
+		//}
+		discharge(u);
 		u = positiveExcessIdx(t);
 	}
-	cout << graph_size << endl;
+	
 	return graph[t].excess;
 }
+
 // relabel to front algorithm
 int Graph::maxFlow_rtf(int s, int t){
 	initialize(s);
@@ -302,59 +324,93 @@ int Graph::maxFlow_rtf(int s, int t){
 	return graph[t].excess;
 }
 
-int Graph::maxFlow_pr_gap(int s, int t){
-	initialize(s);
-	int u = positiveExcessIdx(t);
-
-	vector<vector<int> > vertex_label(graph.size()+1);
-	vector<int> vertex_label_count(graph.size() + 1, 0);
-	int largest_label = graph.size();
-
-	vertex_label[graph[s].height].push_back(s);
+int Graph::maxFlow_hpr(int s, int t){
+	vector<vector<int> > actives(graph_size);
+	int highest_level = 1;
+	vector<int> next_level(graph_size);
 	for (int i = 0; i < graph_size; ++i){
-		if (i != s){
-			vertex_label[0].push_back(i);
-		}
+		next_level[i] = i;
 	}
-	vertex_label_count[0] = graph_size - 1;
-	vertex_label_count[graph_size] = 1;
 
-	while (u != -1){
-		if (!push(u)){
-			int height = graph[u].height;
-			relabel(u);
-			vertex_label_count[height] -= 1;
-			vertex_label_count[graph[u].height] += 1;
-			for (int i = 0; i < vertex_label[height].size(); ++i){
-				if (vertex_label[height][i] == u){
-					vertex_label[height].erase(vertex_label[height].begin() + i);
-					break;
+	// initialize and push preflow
+	for (auto it = graph[s].begin(); it != graph[s].end(); ++it){
+		int end_vertex = it->first;
+		int temp_flow = graph[s][end_vertex].r_weight;
+
+		it->second.r_weight -= temp_flow;
+		graph[end_vertex][s].r_weight += temp_flow;
+		graph[s].excess -= temp_flow;
+		graph[end_vertex].excess += temp_flow;
+
+		actives[highest_level - 1].push_back(end_vertex);
+		next_level[highest_level] = highest_level - 1;
+	}
+
+	while (!actives[highest_level].empty()){
+		int u = actives[highest_level][0];
+		int height = graph[u].height;
+		
+		discharge(u);
+
+		actives[highest_level].erase(actives[highest_level].begin());  // vertex has been fully discharged and shoould be removed
+
+		if (graph[u].height > height){  // vertex u has been relabelled
+			if (graph[u].height < graph_size){
+				actives[graph[u].height].push_back(u);
+				if (actives[highest_level].empty()){
+					next_level[graph[u].height] = next_level[highest_level];
+				}
+				else{
+					next_level[graph[u].height] = highest_level;
 				}
 			}
-			vertex_label[graph[u].height].push_back(u);
-		}
-
-		bool gap_relabel = false;
-		for (int i = 1; i < graph_size; ++i){
-			if (vertex_label_count[i] == 0){
-				gap_relabel = true;
-			}
-			if (vertex_label_count[i] != 0 && gap_relabel == true){
-				for (int j = 0; j < vertex_label_count[i]; ++j){
-					int c_vertex = vertex_label[i][j];
-					graph[c_vertex].height = graph_size;
+			else{
+				if (actives[highest_level].empty()){
+					highest_level = next_level[highest_level];
 				}
 			}
 		}
-
-
-		u = positiveExcessIdx(t);
 	}
+
+
 	return graph[t].excess;
 
-	
-
 }
+
+bool Graph::discharge_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level){
+
+	while (graph[u].excess > 0){
+		int temp_height = INT_MAX;
+		int sz = graph[u].edges.size();
+		for (int i = 0; i < sz; ++i){
+			int v = graph[u].edges[i].first;
+			// push flow 
+			if (graph[u].edges[i].second.r_weight > 0 && graph[u].height == graph[v].height+1){
+				int temp_flow = min(graph[u].edges[i].second.r_weight, graph[u].excess);
+
+				graph[u].edges[i].second.r_weight -= temp_flow;
+				graph[v][u].r_weight += temp_flow;
+				graph[u].excess -= temp_flow;
+				graph[v].excess += temp_flow;
+				// if node v previously is inactive
+				if (graph[v].excess == temp_flow) {
+					actives[highest_level - 1].push_back(v);
+					next_level[highest_level] = highest_level - 1;
+				}
+			}
+			// relabel u
+			if (graph[u].edges[i].second.r_weight > 0 && temp_height > graph[v].height){
+				temp_height = graph[v].height;
+			}
+
+		}
+		graph[u].height = temp_height + 1;
+		//relabel(u);
+	}
+	return false;
+}
+
+
 void Graph::moveToFront(int i, int *A) {
 	int temp = A[i];
 	int n;

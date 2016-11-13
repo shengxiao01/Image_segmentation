@@ -28,29 +28,30 @@ void postProcessing(vector<int>& cut, Mat& image, Mat& original_img);
 int main()
 {
 
-		Mat image, original_image;
-		string file = ".//test//carriage.jpg";
-		if (!preProcessing(file, image, original_image)) return 0;
-		
+	Mat image, original_image;
+	string file = ".//test//carriage.jpg";
+	if (!preProcessing(file, image, original_image)) return 0;
 
-		clock_t begin = clock();
-		Graph graph(image,256,1);
 
-		clock_t mid = clock();
+	clock_t begin = clock();
+	Graph graph(image, 256, 1);
 
-		//int t = graph.maxFlow_rtf(image.total(), image.total() + 1);
-		int t = graph.maxFlow_pr(image.total(), image.total() + 1);
+	clock_t mid = clock();
 
-		vector<int> cut = graph.findCut(image.total());
+	int t = graph.maxFlow_rtf(image.total(), image.total() + 1);
+	//int t = graph.maxFlow_pr(image.total(), image.total() + 1);
+	
+	//vector<int> cut = graph.findCut(image.total());
+	vector<int> cut = graph.Cut();
 
-		clock_t end = clock();
-		double secs1 = double(mid - begin) / CLOCKS_PER_SEC;
-		double secs2 = double(end - mid) / CLOCKS_PER_SEC;
-		cout << "Time elapsed for graph bulding: " << secs1 << endl;
-		cout << "Time elapsed for max flow: " << secs2 << endl;
+	clock_t end = clock();
+	double secs1 = double(mid - begin) / CLOCKS_PER_SEC;
+	double secs2 = double(end - mid) / CLOCKS_PER_SEC;
+	cout << "Time elapsed for graph bulding: " << secs1 << endl;
+	cout << "Time elapsed for max flow: " << secs2 << endl;
 
-		postProcessing(cut, image, original_image);
-		
+	postProcessing(cut, image, original_image);
+
 	return 0;
 }
 
@@ -105,6 +106,6 @@ bool preProcessing(string file_name, Mat& image, Mat& original_image){
 		return false;
 	}
 
-	resize(original_image, image, Size(), 10 / (double)original_image.rows, 10 / (double)original_image.rows);
+	resize(original_image, image, Size(), 50 / (double)original_image.rows, 50 / (double)original_image.rows);
 	return true;
 }

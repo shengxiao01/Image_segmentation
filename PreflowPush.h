@@ -82,10 +82,15 @@ public:
 	int maxFlow_rtf(int s, int t);
 
 	void moveToFront(int i, int *A);
-	int maxFlow_pr_gap(int s, int t);
+	int maxFlow_hpr(int s, int t);
+	bool discharge_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level);
 
 	vector<int> findCut(int s);
 	double estimateNoise(Mat& image);
 	inline double neighbourPenality(Vec3b x, Vec3b y, double sigma);
 	void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
+
+
+	vector<int> Cut();
+	int ActiveNodeIdx(int t);
 };
