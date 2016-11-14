@@ -2,20 +2,15 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/ml.hpp>
-
-#include <limits.h>
-#include <algorithm>
-#include <cmath>
 
 #include <iostream>
 #include <string>
 #include <vector>
 #include <queue>
-#include <string>
 
-#include "graph.h"
-#include "PreflowPush.h"
+#include "Maxflow_fifo_gap.h"
+#include "Maxflow_rtf.h"
+#include "Maxflow_pr.h"
 
 #include <ctime>
 #include <stdlib.h> 
@@ -27,22 +22,19 @@ void postProcessing(vector<int>& cut, Mat& image, Mat& original_img);
 
 int main()
 {
-
+	
 		Mat image, original_image;
 		string file = ".//test//carriage.jpg";
 		if (!preProcessing(file, image, original_image)) return 0;
 		
-
 		clock_t begin = clock();
-		Graph graph(image,256,1);
+		Maxflow_rtf graph(image, 256, 1);
 
 		clock_t mid = clock();
 
-		//int t = graph.maxFlow_rtf(image.total(), image.total() + 1);
-		//int t = graph.maxFlow_pr(image.total(), image.total() + 1);
-		int t = graph.maxFlow_fifo_gap(image.total(), image.total() + 1);
+		graph.maxflow(image.total(), image.total() + 1);
 		clock_t end = clock();
-		vector<int> cut = graph.Cut();
+		vector<int> cut = graph.BFSCut(image.total());
 
 		//clock_t end = clock();
 		double secs1 = double(mid - begin) / CLOCKS_PER_SEC;

@@ -1,17 +1,31 @@
+#ifndef GRAPH_H
+#define GRAPH_H
 
-class Edge{
-	int d_vertex;   // end vertex
 
-	int d_weight;   // weight
+#include <vector>
+#include <queue>
+
+#include "Vertex.h"
+#include "GaussModel.h"
+
+class Graph{
+protected:
+	vector<Vertex> graph;
+	int graph_size;
 
 public:
-	Edge(int vertex = 0, int weight = 0) : d_weight(weight), d_vertex(vertex) {}
+	Graph(int d_size);
 
-	int vertex() const { return d_vertex; }
+	Graph(Mat& image, const int PRECISION = 256, const double alpha = 1);
 
-	int weight() const { return d_weight; }
+	void insert_edge(int start, int end, int weight);
 
-	void change_weight(int delta) {
-		d_weight = d_weight + delta;
-	}
+	void addFlow(int u, int v, int flow);
+
+	vector<int> HeightCut();
+
+	vector<int> BFSCut(int s);
+
 };
+
+#endif
