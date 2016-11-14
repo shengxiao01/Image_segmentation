@@ -190,32 +190,29 @@ void Graph::initialize(int source){
 
 
 int Graph::positiveExcessIdx(int t){
-	for (int i = 0; i < graph_size; ++i){
-		if (graph[i].excess > 0 && i != t){
+	for (int i = 0; i < graph_size-2; ++i){
+		if (graph[i].excess > 0){
 			return i;
 		}
 	}
 	return -1;
 }
 
-int Graph::ActiveNodeIdx(int t){
-	for (int i = 0; i < graph_size; ++i){
-		if (graph[i].excess > 0 && graph[i].height < graph_size && i != t){
-			return i;
-		}
-	}
-	return -1;
-}
+
 
 
 vector<int> Graph::Cut(){
 	vector<int> cut;
-
+	int cou = 0;
 	for (int i = 0; i < graph_size - 2; ++i){
+		if (graph[i].height == 1){
+			++cou;
+		}
 		if (graph[i].height >= graph_size){
 			cut.push_back(i);
 		}
 	}
+	cout << cou << "nodes" << endl;
 	return cut;
 }
 
@@ -286,9 +283,6 @@ int Graph::maxFlow_pr(int s, int t){
 	int u = positiveExcessIdx(t);
 
 	while (u != -1){
-		//if (!push(u)){
-		//	relabel(u);
-		//}
 		discharge(u);
 		u = positiveExcessIdx(t);
 	}
@@ -325,91 +319,87 @@ int Graph::maxFlow_rtf(int s, int t){
 }
 
 int Graph::maxFlow_hpr(int s, int t){
+	
 	vector<vector<int> > actives(graph_size);
-	int highest_level = 1;
+	actives[1] = vector<int>(graph_size - 2);
+	int highest_level = 0;
 	vector<int> next_level(graph_size);
-	for (int i = 0; i < graph_size; ++i){
-		next_level[i] = i;
+	initialize(s);
+
+	int u = ActiveNodeIdx(t);
+
+	while (u != -1){
+		discharge_hpr(u, actives, highest_level, next_level);
+		//discharge(u);
+		u = ActiveNodeIdx(t);
 	}
-
-	// initialize and push preflow
-	for (auto it = graph[s].begin(); it != graph[s].end(); ++it){
-		int end_vertex = it->first;
-		int temp_flow = graph[s][end_vertex].r_weight;
-
-		it->second.r_weight -= temp_flow;
-		graph[end_vertex][s].r_weight += temp_flow;
-		graph[s].excess -= temp_flow;
-		graph[end_vertex].excess += temp_flow;
-
-		actives[highest_level - 1].push_back(end_vertex);
-		next_level[highest_level] = highest_level - 1;
-	}
-
-	while (!actives[highest_level].empty()){
-		int u = actives[highest_level][0];
-		int height = graph[u].height;
-		
-		discharge(u);
-
-		actives[highest_level].erase(actives[highest_level].begin());  // vertex has been fully discharged and shoould be removed
-
-		if (graph[u].height > height){  // vertex u has been relabelled
-			if (graph[u].height < graph_size){
-				actives[graph[u].height].push_back(u);
-				if (actives[highest_level].empty()){
-					next_level[graph[u].height] = next_level[highest_level];
-				}
-				else{
-					next_level[graph[u].height] = highest_level;
-				}
-			}
-			else{
-				if (actives[highest_level].empty()){
-					highest_level = next_level[highest_level];
-				}
-			}
-		}
-	}
-
 
 	return graph[t].excess;
 
 }
 
-bool Graph::discharge_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level){
+int Graph::ActiveNodeIdx(int t){
+	int temp_height = -1;
+	int idx = -1;
+	for (int i = 0; i < graph_size-2; ++i){
+		if (graph[i].excess > 0 && temp_height < graph[i].height){
+			temp_height = graph[i].height;
+			idx = i;
+		}
+	}
+	return idx;
+}
 
+
+void Graph::discharge_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level){
+
+	int i = 0;
+	int sz = graph[u].edges.size();
+	int temp_height = INT_MAX;
+	
 	while (graph[u].excess > 0){
-		int temp_height = INT_MAX;
-		int sz = graph[u].edges.size();
-		for (int i = 0; i < sz; ++i){
+		
+		if (i == sz){
+			//cout << "relabel..." << endl;
+			relabel_hpr(u, actives, highest_level, next_level);
+			//relabel(u);
+			i = 0;
+		}
+		else{
 			int v = graph[u].edges[i].first;
+			
 			// push flow 
-			if (graph[u].edges[i].second.r_weight > 0 && graph[u].height == graph[v].height+1){
+			if (graph[u].edges[i].second.r_weight > 0 && graph[u].height == graph[v].height + 1 ){
 				int temp_flow = min(graph[u].edges[i].second.r_weight, graph[u].excess);
-
 				graph[u].edges[i].second.r_weight -= temp_flow;
 				graph[v][u].r_weight += temp_flow;
 				graph[u].excess -= temp_flow;
 				graph[v].excess += temp_flow;
-				// if node v previously is inactive
-				if (graph[v].excess == temp_flow) {
-					actives[highest_level - 1].push_back(v);
-					next_level[highest_level] = highest_level - 1;
+				if (graph[v].excess == temp_flow && graph[v].height < graph_size){
+					actives[graph[v].height].push_back(v);					
 				}
 			}
-			// relabel u
-			if (graph[u].edges[i].second.r_weight > 0 && temp_height > graph[v].height){
-				temp_height = graph[v].height;
-			}
-
+			++i;
 		}
-		graph[u].height = temp_height + 1;
-		//relabel(u);
+		
 	}
-	return false;
+
 }
 
+void Graph::relabel_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level){
+	int temp_height = INT_MAX;
+	int sz = graph[u].edges.size();
+
+	for (int i = 0; i < sz; ++i){
+		int v = graph[u].edges[i].first;
+		if (graph[u].edges[i].second.r_weight > 0 && temp_height > graph[v].height){
+			temp_height = graph[v].height;
+		}
+	}
+
+	graph[u].height = temp_height + 1;
+	
+}
 
 void Graph::moveToFront(int i, int *A) {
 	int temp = A[i];

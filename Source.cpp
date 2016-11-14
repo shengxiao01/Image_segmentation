@@ -38,8 +38,9 @@ int main()
 
 	clock_t mid = clock();
 
-	int t = graph.maxFlow_rtf(image.total(), image.total() + 1);
+	//int t = graph.maxFlow_rtf(image.total(), image.total() + 1);
 	//int t = graph.maxFlow_pr(image.total(), image.total() + 1);
+	int t = graph.maxFlow_hpr(image.total(), image.total() + 1);
 	
 	//vector<int> cut = graph.findCut(image.total());
 	vector<int> cut = graph.Cut();
@@ -69,11 +70,11 @@ void postProcessing(vector<int>& cut, Mat& image, Mat& original_img){
 
 	Mat ele = getStructuringElement(MORPH_RECT, Size(3, 3));
 
-	dilate(seg, seg, ele);
-	erode(seg, seg, ele);
+	//dilate(seg, seg, ele);
+	//erode(seg, seg, ele);
 
-	erode(seg, seg, ele);
-	dilate(seg, seg, ele);
+	//erode(seg, seg, ele);
+	//dilate(seg, seg, ele);
 
 	resize(seg, seg, Size(original_img.cols, original_img.rows));  // upscale the segmentation results
 	threshold(seg, seg, 127, 255, 0);
@@ -106,6 +107,6 @@ bool preProcessing(string file_name, Mat& image, Mat& original_image){
 		return false;
 	}
 
-	resize(original_image, image, Size(), 50 / (double)original_image.rows, 50 / (double)original_image.rows);
+	resize(original_image, image, Size(), 45 / (double)original_image.rows,45 / (double)original_image.rows);
 	return true;
 }

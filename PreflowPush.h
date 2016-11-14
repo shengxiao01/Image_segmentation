@@ -83,7 +83,9 @@ public:
 
 	void moveToFront(int i, int *A);
 	int maxFlow_hpr(int s, int t);
-	bool discharge_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level);
+	void discharge_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level);
+	void relabel_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level);
+
 
 	vector<int> findCut(int s);
 	double estimateNoise(Mat& image);
