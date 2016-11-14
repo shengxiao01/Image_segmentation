@@ -82,17 +82,17 @@ public:
 	int maxFlow_rtf(int s, int t);
 
 	void moveToFront(int i, int *A);
-	int maxFlow_hpr(int s, int t);
-	void discharge_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level);
-	void relabel_hpr(int u, vector<vector<int> >& actives, int& highest_level, vector<int>& next_level);
+
+	int maxFlow_fifo_gap(int s, int t);
+	void discharge_fifo(int u, vector<int>& vertex_label_count, vector<bool>& active, queue<int>& active_vertex);
+	void relabel_fifo(int u, vector<int>& vertex_label_count, vector<bool>& active, queue<int>& active_vertex);
+	void gap_fifo(int u, vector<int>& vertex_label_count, vector<bool>& active, queue<int>& active_vertex);
+	void enqueue_fifo(int u, vector<int>& vertex_label_count, vector<bool>& active, queue<int>& active_vertex);
 
 
+	vector<int> Cut();
 	vector<int> findCut(int s);
 	double estimateNoise(Mat& image);
 	inline double neighbourPenality(Vec3b x, Vec3b y, double sigma);
 	void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
-
-
-	vector<int> Cut();
-	int ActiveNodeIdx(int t);
 };
