@@ -9,8 +9,7 @@ private:
 
 	vector<int> vertex_label_count;
 
-	int max_label;
-	int min_label;
+	
 
 public:
 	Maxflow_hpr_gap(Mat& image, const int PRECISION = 256, const double alpha = 1);
@@ -21,10 +20,12 @@ public:
 
 	bool discharge(int u, int source, int sink);
 
+	bool push(int u);
+
 	void relabel(int u);
 
 	void gap(int u);
 
-	int activeNode();
+	int activeNode(int t);
 
 };

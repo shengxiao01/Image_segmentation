@@ -11,6 +11,7 @@
 #include "Maxflow_fifo_gap.h"
 #include "Maxflow_rtf.h"
 #include "Maxflow_pr.h"
+#include "Maxflow_hpr_gap.h"
 
 #include <ctime>
 #include <stdlib.h> 
@@ -28,13 +29,14 @@ int main()
 		if (!preProcessing(file, image, original_image)) return 0;
 		
 		clock_t begin = clock();
-		Maxflow_rtf graph(image, 256, 1);
+		//Maxflow_fifo_gap graph(image, 256, 1);
+		Maxflow_hpr_gap graph(image, 256, 1);
 
 		clock_t mid = clock();
 
 		graph.maxflow(image.total(), image.total() + 1);
 		clock_t end = clock();
-		vector<int> cut = graph.BFSCut(image.total());
+		vector<int> cut = graph.HeightCut();
 
 		//clock_t end = clock();
 		double secs1 = double(mid - begin) / CLOCKS_PER_SEC;

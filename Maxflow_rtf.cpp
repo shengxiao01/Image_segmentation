@@ -16,7 +16,6 @@ int Maxflow_rtf::maxflow(int s, int t){
 	for (int i = sz - 1; i != -1;){
 		int u = active_vertex[i];
 		int height = graph[u].height;
-
 		discharge(u);
 		if (graph[u].height > height){
 			active_vertex.erase(active_vertex.begin() + i);

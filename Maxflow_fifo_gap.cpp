@@ -9,14 +9,15 @@ Maxflow_fifo_gap::Maxflow_fifo_gap(Mat& image, const int PRECISION, const double
 void Maxflow_fifo_gap::maxflow(int s, int t){
 
 	initialize(s, t);
-
+	
 	while (!active_vertex.empty()){
 		int u = active_vertex.front();
 		active_vertex.pop();
 		active[u] = false;
 		discharge(u);
+		
 	}
-
+	
 }
 
 void Maxflow_fifo_gap::initialize(int s, int t){
