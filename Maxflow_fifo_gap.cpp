@@ -9,14 +9,16 @@ Maxflow_fifo_gap::Maxflow_fifo_gap(Mat& image, const int PRECISION, const double
 void Maxflow_fifo_gap::maxflow(int s, int t){
 
 	initialize(s, t);
-	
+	int cou = 0;
 	while (!active_vertex.empty()){
+		cou++;
 		int u = active_vertex.front();
 		active_vertex.pop();
 		active[u] = false;
 		discharge(u);
 		
 	}
+	cout << cou << endl;
 	
 }
 
@@ -90,7 +92,7 @@ void Maxflow_fifo_gap::gap(int u){
 		vertex_label_count[graph[i].height]--;
 		graph[i].height = max(graph[i].height, graph_size + 1);
 		vertex_label_count[graph[i].height]++;
-		enqueue(u);
+		enqueue(i);
 	}
 }
 

@@ -8,6 +8,7 @@
 #include "Vertex.h"
 #include "GaussModel.h"
 
+
 class Graph{
 protected:
 	vector<Vertex> graph;

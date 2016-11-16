@@ -13,6 +13,7 @@
 #include "Maxflow_pr.h"
 #include "Maxflow_hpr_gap.h"
 
+
 #include <ctime>
 #include <stdlib.h> 
 #include <conio.h>
@@ -100,6 +101,6 @@ bool preProcessing(string file_name, Mat& image, Mat& original_image){
 		return false;
 	}
 
-	resize(original_image, image, Size(), 50 / (double)original_image.rows, 50 / (double)original_image.rows);
+	resize(original_image, image, Size(), 200 / (double)original_image.rows, 200 / (double)original_image.rows);
 	return true;
 }

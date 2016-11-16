@@ -3,16 +3,18 @@
 class Maxflow_hpr_gap : public Graph{
 private:
 
-	vector<queue<int> > actives;
+	//vector<queue<int> > actives;
+	queue<int>* actives;
 
 	int highest_level = 1;
 
-	vector<int> vertex_label_count;
+	int *vertex_label_count;
 
-	
+	vector<int> active_list;
 
 public:
 	Maxflow_hpr_gap(Mat& image, const int PRECISION = 256, const double alpha = 1);
+	~Maxflow_hpr_gap();
 
 	void maxflow(int s, int t);
 
@@ -20,12 +22,14 @@ public:
 
 	bool discharge(int u, int source, int sink);
 
-	bool push(int u);
+	void push(int u, int sink);
 
 	void relabel(int u);
 
 	void gap(int u);
 
 	int activeNode(int t);
+
+	int findHighestLabel(int height);
 
 };
