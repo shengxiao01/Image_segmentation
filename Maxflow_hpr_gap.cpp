@@ -2,15 +2,15 @@
 
 Maxflow_hpr_gap::Maxflow_hpr_gap(Mat& image, const int PRECISION, const double alpha) : Graph(image, PRECISION, alpha) {
 	
-	//vertex_label_count = vector<int>(graph_size+2, 0);
-	vertex_label_count = new int[graph_size + 2]{0};
-	actives = new queue<int> [graph_size+2];
+	active_node = new queue<int>[graph_size + 2];
 
 	active_list.reserve(graph_size);
+	active = vector<bool>(graph_size, false);
 }
+
+
 Maxflow_hpr_gap::~Maxflow_hpr_gap(){
-	delete[] actives;
-	delete[] vertex_label_count;
+	delete[] active_node;
 }
 
 
@@ -18,13 +18,16 @@ void Maxflow_hpr_gap::maxflow(int s, int t){
 	initialize(s, t);
 
 
-	int u = actives[highest_level].front();
+	int u = active_node[highest_level].front();
 	int cou = 0;
-	while (highest_level != -1){
-		
-		u = actives[highest_level].front();
-		actives[graph[u].height].pop();
-		vertex_label_count[graph[u].height]--;
+
+	while (!active_node[highest_level].empty()){
+
+		u = active_node[highest_level].front();
+
+		active_node[highest_level].pop();
+
+		active[u] = false;
 		
 		cou++;
 		
@@ -41,18 +44,20 @@ void Maxflow_hpr_gap::initialize(int source, int sink){
 
 	for (int i = 0; i < sz; ++i){
 		int temp_flow = graph[source].edges[i].second.r_weight;
+		int end_vertex = graph[source].edges[i].first;
 		if (temp_flow > 0){
-			int end_vertex = graph[source].edges[i].first;
+			
 
 			graph[source].edges[i].second.r_weight -= temp_flow;
 			graph[end_vertex][source].r_weight += temp_flow;
 			graph[source].excess -= temp_flow;
 			graph[end_vertex].excess += temp_flow;
 
-			actives[0].push(end_vertex);  // if flow is pushed, end_vertex becomes active
+			active_node[0].push(end_vertex);  // if flow is pushed, end_vertex becomes active
 			active_list.push_back(end_vertex);
-			vertex_label_count[0]++;
+			active[end_vertex] = true;
 		}
+		
 	}
 
 	highest_level = 0;
@@ -61,26 +66,30 @@ void Maxflow_hpr_gap::initialize(int source, int sink){
 
 bool Maxflow_hpr_gap::discharge(int u, int source, int sink){
 	
-
 	push(u, sink);
-
 
 	if (graph[u].excess > 0){
 
 			relabel(u);
+
 			if (graph[u].height >= graph_size){
-				highest_level = findHighestLabel(graph_size - 1);
+				while (active_node[highest_level].empty() && highest_level >0){
+					highest_level--;
+				}
 			}
 			else{
-				actives[graph[u].height].push(u);
-				vertex_label_count[graph[u].height]++;
+				active_node[graph[u].height].push(u);
 				highest_level = graph[u].height;
+				active[u] = true;
 			}
 	}
 	else{
-		if (actives[graph[u].height].empty()){
-			gap(graph[u].height);
-			highest_level = findHighestLabel(graph[u].height - 1);
+		if (active_node[graph[u].height].empty()){
+			//gap(graph[u].height);
+			graph[u].height = graph_size;
+			while (active_node[highest_level].empty() && highest_level > 0){
+				highest_level--;
+			}
 		}
 	}
 
@@ -104,11 +113,12 @@ void Maxflow_hpr_gap::push(int u, int sink){
 			graph[u].excess -= temp_flow;
 			graph[v].excess += temp_flow;
 
-			if (graph[v].excess == temp_flow && v != sink){
-				actives[graph[v].height].push(v);
-				active_list.push_back(v);
-				vertex_label_count[graph[v].height]++;
-
+			if (v != sink){
+				if (!active[v]){
+					active_node[graph[v].height].push(v);
+					active_list.push_back(v);
+					active[v] = true;
+				}
 			}
 		}
 	}
@@ -131,46 +141,23 @@ void Maxflow_hpr_gap::relabel(int u){
 
 
 void Maxflow_hpr_gap::gap(int height){
-
-	for (int i = 0; i < active_list.size();){
-		if (graph[active_list[i]].height >= height){
-			graph[active_list[i]].height = graph_size;
-			active_list.erase(active_list.begin() + i);
-		}
-		else{
-			++i;
-		}
-	}
-
-
-	//for (int i = height; i < graph_size; ++i){
-		//int& count = vertex_label_count[i];
-		
-		//while (!actives[i].empty()){
-		//	cout << 11 << endl;
-		//	actives[i].pop();
-		//	vertex_label_count[i]--;
-		//}
+	
+	//for (int i = 0; i < active_list.size();){
+	//	if (graph[active_list[i]].height > height){
+	//		
+	//		graph[active_list[i]].height = graph_size;
+	//		active_list.erase(active_list.begin() + i);
+	//	}
+	//	else{
+	//		++i;
+	//	}
 	//}
 
-}
-
-int Maxflow_hpr_gap::findHighestLabel(int height){
-	int temp_height = -1;
-	for (int h = height; h > -1; --h){
-
-		while (!actives[h].empty()){
-				temp_height = h;
-				break;	
+	for (int i = 0; i < graph_size; ++i){
+		if (graph[i].height >= height){
+			active[i] = false;
+			graph[i].height = graph_size;
 		}
 	}
-	/*
-	for (int h = height; h > -1; --h){
-		if (!actives[h].empty()){
-			temp_height = h;
-			break;
-		}
-	}
-	*/
-	return temp_height;
+
 }

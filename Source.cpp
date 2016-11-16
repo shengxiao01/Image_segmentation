@@ -19,7 +19,7 @@
 #include <conio.h>
 
 using namespace std;
-bool preProcessing(string file_name, Mat& image, Mat& original_image);
+bool preProcessing(string file_name, Mat& image, Mat& original_image, double downsample_width);
 void postProcessing(vector<int>& cut, Mat& image, Mat& original_img);
 
 int main()
@@ -27,12 +27,13 @@ int main()
 	
 		Mat image, original_image;
 		string file = ".//test//carriage.jpg";
-		if (!preProcessing(file, image, original_image)) return 0;
+		double downsample_width = 300;
+		if (!preProcessing(file, image, original_image, downsample_width)) return 0;
 		
 		clock_t begin = clock();
 		//Maxflow_fifo_gap graph(image, 256, 1);
 		Maxflow_hpr_gap graph(image, 256, 1);
-
+		//Maxflow_rtf graph(image, 256, 1);
 		clock_t mid = clock();
 
 		graph.maxflow(image.total(), image.total() + 1);
@@ -90,7 +91,7 @@ void postProcessing(vector<int>& cut, Mat& image, Mat& original_img){
 	imshow("Display window", original_img);
 	waitKey(0); // Wait for a keystroke in the window
 }
-bool preProcessing(string file_name, Mat& image, Mat& original_image){
+bool preProcessing(string file_name, Mat& image, Mat& original_image, double downsample_width){
 
 	original_image = imread(file_name, IMREAD_COLOR); // Read the file
 
@@ -101,6 +102,6 @@ bool preProcessing(string file_name, Mat& image, Mat& original_image){
 		return false;
 	}
 
-	resize(original_image, image, Size(), 200 / (double)original_image.rows, 200 / (double)original_image.rows);
+	resize(original_image, image, Size(), downsample_width / (double)original_image.rows, downsample_width / (double)original_image.rows);
 	return true;
 }

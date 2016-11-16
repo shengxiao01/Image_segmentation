@@ -7,6 +7,7 @@ Final project for class BU EC504: Advanced Data Structure
 2. Max flow using push-relabel method
 3. Max flow using relabel-to-front method
 4. Max flow using FIFO method with gap relabelling hurestics
+5. Max flow using higest label selection rule with gap relabelling hurestics
 
 # References:
 
