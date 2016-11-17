@@ -20,19 +20,20 @@
 
 using namespace std;
 bool preProcessing(string file_name, Mat& image, Mat& original_image, double downsample_width);
-void postProcessing(vector<int>& cut, Mat& image, Mat& original_img);
+void postProcessing(vector<int>& cut, Mat& image, Mat& original_img, string save_name);
 
 int main()
 {
 	
 		Mat image, original_image;
-		string file = ".//test//statue.jpg";
-		double downsample_width = 300;
-		if (!preProcessing(file, image, original_image, downsample_width)) return 0;
+		string file = ".//test//carriage.jpg";
+		string save_file_name = "./_Segmented_hpr_alpha_10_HiRes.jpg";
+		double max_dimension = 500;
+		if (!preProcessing(file, image, original_image, max_dimension)) return 0;
 		
 		clock_t begin = clock();
-		//Maxflow_fifo_gap graph(image, 256, 1);
-		Maxflow_hpr_gap graph(image, 256, 1);
+		//Maxflow_fifo_gap graph(image, 65535, 100);
+		Maxflow_hpr_gap graph(image, 65535, 10);
 		//Maxflow_rtf graph(image, 256, 1);
 		clock_t mid = clock();
 
@@ -46,12 +47,12 @@ int main()
 		cout << "Time elapsed for graph bulding: " << secs1 << endl;
 		cout << "Time elapsed for max flow: " << secs2 << endl;
 
-		postProcessing(cut, image, original_image);
-		
+		postProcessing(cut, image, original_image, save_file_name);
+
 	return 0;
 }
 
-void postProcessing(vector<int>& cut, Mat& image, Mat& original_img){
+void postProcessing(vector<int>& cut, Mat& image, Mat& original_img, string save_name){
 	Mat seg = Mat::zeros(image.rows, image.cols, CV_8UC1);
 	int pixel_number = image.total();
 	int cols = image.cols;
@@ -85,13 +86,13 @@ void postProcessing(vector<int>& cut, Mat& image, Mat& original_img){
 
 	namedWindow("Segmentation", WINDOW_NORMAL);   // display segmentation results
 	imshow("Segmentation", segmented_img);
-	imwrite("./Segmented_hpr_alpha_1.jpg", segmented_img);
+	imwrite(save_name, segmented_img);
 
 	namedWindow("Display window", WINDOW_NORMAL);  // display original image
 	imshow("Display window", original_img);
 	waitKey(0); // Wait for a keystroke in the window
 }
-bool preProcessing(string file_name, Mat& image, Mat& original_image, double downsample_width){
+bool preProcessing(string file_name, Mat& image, Mat& original_image, double max_dimension){
 
 	original_image = imread(file_name, IMREAD_COLOR); // Read the file
 
@@ -102,6 +103,13 @@ bool preProcessing(string file_name, Mat& image, Mat& original_image, double dow
 		return false;
 	}
 
-	resize(original_image, image, Size(), downsample_width / (double)original_image.rows, downsample_width / (double)original_image.rows);
+	if (max_dimension < (double)original_image.rows || max_dimension < (double)original_image.cols){
+		double downsamlple_ratio = min(max_dimension / (double)original_image.rows, max_dimension / (double)original_image.cols);
+		resize(original_image, image, Size(), downsamlple_ratio, downsamlple_ratio);
+	}
+	else{
+		original_image.copyTo(image);
+	}
+	
 	return true;
 }

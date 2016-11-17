@@ -28,6 +28,7 @@ void Maxflow_hpr_gap::maxflow(int s, int t){
 	}
 	cout << discharge_count << endl;
 	cout << "Gap operations: " << operation_count << endl;
+	cout << "Max flow value: " << graph[t].excess << endl;
 }
 
 void Maxflow_hpr_gap::initialize(int source, int sink){
@@ -58,21 +59,31 @@ void Maxflow_hpr_gap::initialize(int source, int sink){
 
 bool Maxflow_hpr_gap::discharge(int u, int source, int sink){
 	
-	push(u, sink);
+	Vertex& current_node = graph[u];
 
-	int old_height = graph[u].height;
-	if (graph[u].excess > 0){
+	//push(current_node, sink);
+	int sz = current_node.edges.size();
+	int temp_height = INT_MAX;
 
-		/*relabel(u);
-		vertex_label_count[old_height]--;
-		if (graph[u].height < graph_size){
-			vertex_label_count[graph[u].height]++;
-			active_node[graph[u].height].push(u);
-			highest_level = graph[u].height;
+	for (int i = 0; i < sz && current_node.excess > 0; ++i){
+		int v = current_node.edges[i].first;
+		// push flow 
+		if (current_node.edges[i].second.r_weight > 0 && current_node.height == graph[v].height + 1){
+			int temp_flow = min(current_node.edges[i].second.r_weight, graph[u].excess);
+			current_node.edges[i].second.r_weight -= temp_flow;
+			graph[v][u].r_weight += temp_flow;
+			current_node.excess -= temp_flow;
+			graph[v].excess += temp_flow;
+			if (graph[v].excess == temp_flow && v != sink){
+				active_node[graph[v].height].push(v);
+
+			}
 		}
-		if (vertex_label_count[old_height] == 0){
-			gap(old_height);
-		}*/
+	}
+
+
+	int old_height = current_node.height;
+	if (current_node.excess > 0){
 		
 		if (vertex_label_count[old_height] == 1){
 			gap(old_height);
@@ -80,12 +91,12 @@ bool Maxflow_hpr_gap::discharge(int u, int source, int sink){
 		}
 		else{
 			vertex_label_count[old_height]--;
-			relabel(u);
-			
-			if (graph[u].height < graph_size){
-				vertex_label_count[graph[u].height]++;
-				active_node[graph[u].height].push(u);
-				highest_level = graph[u].height;
+			relabel(current_node);
+
+			if (current_node.height < graph_size){
+				vertex_label_count[current_node.height]++;
+				active_node[current_node.height].push(u);
+				highest_level = current_node.height;
 			}
 		}
 		
@@ -120,17 +131,17 @@ void Maxflow_hpr_gap::push(int u, int sink){
 	}
 }
 
-void Maxflow_hpr_gap::relabel(int u){
+void Maxflow_hpr_gap::relabel(Vertex& node){
 	int temp_height = INT_MAX;
-	int sz = graph[u].edges.size();
+	int sz = node.edges.size();
 	
 	for (int i = 0; i < sz; ++i){
-		int v = graph[u].edges[i].first;
-		if (graph[u].edges[i].second.r_weight > 0 && temp_height > graph[v].height){
+		int v = node.edges[i].first;
+		if (node.edges[i].second.r_weight > 0 && temp_height > graph[v].height){
 			temp_height = graph[v].height;
 		}
 	}
-	graph[u].height = temp_height + 1;
+	node.height = temp_height + 1;
 	
 }
 

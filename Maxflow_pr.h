@@ -1,3 +1,6 @@
+#ifndef MAXFLOW_PR
+#define MAXFLOW_PR
+
 #include "Graph.h"
 
 class Maxflow_pr : public Graph{
@@ -18,3 +21,5 @@ public:
 	bool discharge(int u);
 
 };
+
+#endif

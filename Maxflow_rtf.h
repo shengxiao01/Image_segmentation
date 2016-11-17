@@ -1,3 +1,6 @@
+#ifndef MAXFLOW_RTF
+#define MAXFLOW_RTF
+
 #include "Graph.h"
 
 class Maxflow_rtf : public Graph{
@@ -15,3 +18,5 @@ public:
 
 	void relabel(int u);
 };
+
+#endif

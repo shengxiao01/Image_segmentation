@@ -1,3 +1,6 @@
+#ifndef MAXFLOW_FIFO_GAP_H
+#define MAXFLOW_FIFO_GAP_H
+
 #include "Graph.h"
 
 class Maxflow_fifo_gap: public Graph{
@@ -25,3 +28,5 @@ public:
 	void enqueue(int u);
 
 };
+
+#endif

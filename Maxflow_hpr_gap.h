@@ -1,3 +1,6 @@
+#ifndef MAXFLOW_HPR_GAP_H
+#define MAXFLOW_HPR_GAP_H
+
 #include "Graph.h"
 
 class Maxflow_hpr_gap : public Graph{
@@ -25,7 +28,7 @@ public:
 
 	void push(int u, int sink);
 
-	void relabel(int u);
+	void relabel(Vertex& node);
 
 	void gap(int u);
 
@@ -33,3 +36,5 @@ public:
 
 
 };
+
+#endif

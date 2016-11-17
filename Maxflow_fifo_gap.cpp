@@ -20,6 +20,7 @@ void Maxflow_fifo_gap::maxflow(int s, int t){
 	}
 	cout << cou << endl;
 	cout << "Gap operations: " << operation_count << endl;
+	cout << "Max flow value: " << graph[t].excess << endl;
 }
 
 void Maxflow_fifo_gap::initialize(int s, int t){
