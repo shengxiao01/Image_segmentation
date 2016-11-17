@@ -3,9 +3,7 @@
 Maxflow_hpr_gap::Maxflow_hpr_gap(Mat& image, const int PRECISION, const double alpha) : Graph(image, PRECISION, alpha) {
 	
 	active_node = new queue<int>[graph_size + 2];
-
-	active_list.reserve(graph_size);
-	active = vector<bool>(graph_size, false);
+	vertex_label_count = vector<int>(graph_size *2, 0);
 }
 
 
@@ -19,23 +17,17 @@ void Maxflow_hpr_gap::maxflow(int s, int t){
 
 
 	int u = active_node[highest_level].front();
-	int cou = 0;
+	int discharge_count = 0;
 
 	while (!active_node[highest_level].empty()){
-
+		discharge_count++;
 		u = active_node[highest_level].front();
-
-		active_node[highest_level].pop();
-
-		active[u] = false;
-		
-		cou++;
+		active_node[highest_level].pop();		
 		
 		discharge(u, s, t);
-
 	}
-	cout << cou << endl;
-
+	cout << discharge_count << endl;
+	cout << "Gap operations: " << operation_count << endl;
 }
 
 void Maxflow_hpr_gap::initialize(int source, int sink){
@@ -47,20 +39,20 @@ void Maxflow_hpr_gap::initialize(int source, int sink){
 		int end_vertex = graph[source].edges[i].first;
 		if (temp_flow > 0){
 			
-
 			graph[source].edges[i].second.r_weight -= temp_flow;
 			graph[end_vertex][source].r_weight += temp_flow;
 			graph[source].excess -= temp_flow;
 			graph[end_vertex].excess += temp_flow;
 
-			active_node[0].push(end_vertex);  // if flow is pushed, end_vertex becomes active
-			active_list.push_back(end_vertex);
-			active[end_vertex] = true;
+			active_node[1].push(end_vertex);  // if flow is pushed, end_vertex becomes active
+
 		}
+		graph[end_vertex].height = 1;
 		
 	}
+	vertex_label_count[1] = graph_size - 2;
 
-	highest_level = 0;
+	highest_level = 1;
 
 }
 
@@ -68,32 +60,41 @@ bool Maxflow_hpr_gap::discharge(int u, int source, int sink){
 	
 	push(u, sink);
 
+	int old_height = graph[u].height;
 	if (graph[u].excess > 0){
 
+		/*relabel(u);
+		vertex_label_count[old_height]--;
+		if (graph[u].height < graph_size){
+			vertex_label_count[graph[u].height]++;
+			active_node[graph[u].height].push(u);
+			highest_level = graph[u].height;
+		}
+		if (vertex_label_count[old_height] == 0){
+			gap(old_height);
+		}*/
+		
+		if (vertex_label_count[old_height] == 1){
+			gap(old_height);
+			operation_count++;
+		}
+		else{
+			vertex_label_count[old_height]--;
 			relabel(u);
-
-			if (graph[u].height >= graph_size){
-				while (active_node[highest_level].empty() && highest_level >0){
-					highest_level--;
-				}
-			}
-			else{
+			
+			if (graph[u].height < graph_size){
+				vertex_label_count[graph[u].height]++;
 				active_node[graph[u].height].push(u);
 				highest_level = graph[u].height;
-				active[u] = true;
-			}
-	}
-	else{
-		if (active_node[graph[u].height].empty()){
-			//gap(graph[u].height);
-			graph[u].height = graph_size;
-			while (active_node[highest_level].empty() && highest_level > 0){
-				highest_level--;
 			}
 		}
+		
 	}
+	
 
-
+	while (active_node[highest_level].empty() && highest_level > 0){
+		highest_level--;
+	}
 	return false;
 }
 
@@ -107,18 +108,13 @@ void Maxflow_hpr_gap::push(int u, int sink){
 		// push flow 
 		if (graph[u].edges[i].second.r_weight > 0 && graph[u].height == graph[v].height + 1){
 			int temp_flow = min(graph[u].edges[i].second.r_weight, graph[u].excess);
-
 			graph[u].edges[i].second.r_weight -= temp_flow;
 			graph[v][u].r_weight += temp_flow;
 			graph[u].excess -= temp_flow;
 			graph[v].excess += temp_flow;
-
-			if (v != sink){
-				if (!active[v]){
+			if (graph[v].excess == temp_flow && v != sink){
 					active_node[graph[v].height].push(v);
-					active_list.push_back(v);
-					active[v] = true;
-				}
+
 			}
 		}
 	}
@@ -141,22 +137,13 @@ void Maxflow_hpr_gap::relabel(int u){
 
 
 void Maxflow_hpr_gap::gap(int height){
-	
-	//for (int i = 0; i < active_list.size();){
-	//	if (graph[active_list[i]].height > height){
-	//		
-	//		graph[active_list[i]].height = graph_size;
-	//		active_list.erase(active_list.begin() + i);
-	//	}
-	//	else{
-	//		++i;
-	//	}
-	//}
 
 	for (int i = 0; i < graph_size; ++i){
-		if (graph[i].height >= height){
-			active[i] = false;
-			graph[i].height = graph_size;
+		int& cureent_vertex_height = graph[i].height;
+		if (cureent_vertex_height >= height){		
+
+			vertex_label_count[cureent_vertex_height]--;
+			cureent_vertex_height = graph_size;
 		}
 	}
 

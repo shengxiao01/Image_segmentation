@@ -19,7 +19,7 @@ void Maxflow_fifo_gap::maxflow(int s, int t){
 		
 	}
 	cout << cou << endl;
-	
+	cout << "Gap operations: " << operation_count << endl;
 }
 
 void Maxflow_fifo_gap::initialize(int s, int t){
@@ -61,6 +61,7 @@ void Maxflow_fifo_gap::discharge(int u){
 
 	if (graph[u].excess > 0) {
 		if (vertex_label_count[graph[u].height] == 1){
+			operation_count++;
 			gap(u);
 		}
 		else{

@@ -7,6 +7,7 @@ private:
 	vector<bool> active;
 
 	queue<int> active_vertex;
+	int operation_count = 0;
 
 public:
 	Maxflow_fifo_gap(Mat& image, const int PRECISION = 256, const double alpha = 1);

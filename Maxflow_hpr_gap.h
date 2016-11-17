@@ -6,12 +6,12 @@ private:
 	//vector<queue<int> > actives;
 	queue<int>* active_node;
 
-	int highest_level = 1;
+	int highest_level;
 
-	vector<int> active_list;
+	vector<int> vertex_label_count;
 
-	//vector<int> next_level;
-	vector<bool> active;
+	int operation_count = 0;
+
 
 public:
 	Maxflow_hpr_gap(Mat& image, const int PRECISION = 256, const double alpha = 1);

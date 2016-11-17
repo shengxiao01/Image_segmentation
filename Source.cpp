@@ -26,7 +26,7 @@ int main()
 {
 	
 		Mat image, original_image;
-		string file = ".//test//carriage.jpg";
+		string file = ".//test//statue.jpg";
 		double downsample_width = 300;
 		if (!preProcessing(file, image, original_image, downsample_width)) return 0;
 		
@@ -85,7 +85,7 @@ void postProcessing(vector<int>& cut, Mat& image, Mat& original_img){
 
 	namedWindow("Segmentation", WINDOW_NORMAL);   // display segmentation results
 	imshow("Segmentation", segmented_img);
-	imwrite("./Segmented_alpha_100.jpg", segmented_img);
+	imwrite("./Segmented_hpr_alpha_1.jpg", segmented_img);
 
 	namedWindow("Display window", WINDOW_NORMAL);  // display original image
 	imshow("Display window", original_img);
