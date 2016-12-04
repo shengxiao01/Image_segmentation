@@ -20,9 +20,15 @@ int Maxflow_rtf::maxflow(int s, int t){
 		if (graph[u].height > height){
 			active_vertex.erase(active_vertex.begin() + i);
 			active_vertex.push_back(u);
-			i = sz - 3;
+			i = sz - 1;
 		}
 		--i;
+	}
+	
+	for (int i = 0; i < active_vertex.size(); ++i){
+		if (graph[active_vertex[i]].excess > 0){
+			cout << active_vertex[i] << endl;
+		}
 	}
 
 	return graph[t].excess;
