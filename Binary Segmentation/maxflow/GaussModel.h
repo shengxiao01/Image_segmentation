@@ -14,9 +14,9 @@ using namespace std;
 using namespace cv;
 using namespace cv::ml;
 
-double estimateNoise(Mat& image);
+void estimateNoise(Mat& image, double sigma[]);
 
-double neighbourPenality(Vec3b x, Vec3b y, double sigma);
+double neighbourPenality(Vec3b x, Vec3b y, double sigma[]);
 
 void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>& covs);
 

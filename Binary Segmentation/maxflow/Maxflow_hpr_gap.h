@@ -20,7 +20,7 @@ public:
 	Maxflow_hpr_gap(Mat& image, const int PRECISION = 256, const double alpha = 1);
 	~Maxflow_hpr_gap();
 
-	void maxflow(int s, int t);
+	int maxflow(int s, int t);
 
 	void initialize(int s, int t);
 

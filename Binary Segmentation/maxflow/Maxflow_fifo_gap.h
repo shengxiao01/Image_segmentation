@@ -15,7 +15,7 @@ private:
 public:
 	Maxflow_fifo_gap(Mat& image, const int PRECISION = 256, const double alpha = 1);
 
-	void maxflow(int s, int t);
+	int maxflow(int s, int t);
 
 	void initialize(int s, int t);
 

@@ -15,16 +15,16 @@ void guassMixModel(Mat& image, Mat& labels, Mat& probs, Mat& means, vector<Mat>&
 	means = em_model->getMeans();  // means of each cluster
 }
 
-double neighbourPenality(Vec3b x, Vec3b y, double sigma){
+double neighbourPenality(Vec3b x, Vec3b y, double sigma[]){
 	//cout << "x: " << x << " y: " << y << " sigma: " << sigma << endl;
-	double sqrt_sum = pow(((double)x[0] - (double)y[0]), 2)
-		+ pow(((double)x[1] - (double)y[1]), 2)
-		+ pow(((double)x[2] - (double)y[2]), 2);
-	return exp(-sqrt_sum / (3 * pow(sigma, 2)));
+	double sqrt_sum = pow(((double)x[0] - (double)y[0]), 2) / pow(sigma[0], 2)
+		+ pow(((double)x[1] - (double)y[1]), 2)/pow(sigma[1], 2)
+		+ pow(((double)x[2] - (double)y[2]), 2) / pow(sigma[2], 2);
+	return exp(-sqrt_sum);
 	//return exp(-pow(((double)x - (double)y), 2) / 3);
 }
 
-double estimateNoise(Mat& image){
+void estimateNoise(Mat& image, double sigma[]){
 	Mat x_filter = (Mat_<double>(2, 1) << 1, -1);
 	Mat y_filter = (Mat_<double>(1, 2) << 1, -1);
 	Mat x_grad, y_grad;
@@ -32,8 +32,12 @@ double estimateNoise(Mat& image){
 	filter2D(image, y_grad, 64, y_filter, Point(-1, -1), 0, BORDER_REPLICATE);
 	x_grad = abs(x_grad);
 	y_grad = abs(y_grad);
-	double sigma = sum(x_grad + y_grad)[0];
-	sigma = sigma / (2 * image.rows*image.cols);
+	sigma[0] = sum(x_grad + y_grad)[0];
+	sigma[1] = sum(x_grad + y_grad)[1];
+	sigma[2] = sum(x_grad + y_grad)[2];
+	sigma[0] = sigma[0] / (image.rows*image.cols);
+	sigma[1] = sigma[1] / (image.rows*image.cols);
+	sigma[2] = sigma[2] / (image.rows*image.cols);
 
-	return sigma;
+	//return sigma;
 }

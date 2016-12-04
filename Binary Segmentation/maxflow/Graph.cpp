@@ -17,16 +17,15 @@ Graph::Graph(Mat& image, const int PRECISION, const double alpha){
 
 	log(probs, probs);       // turn linear probability to logrithmic scale
 	probs = -PRECISION * probs;
-	double sigma = estimateNoise(image);
-	//probs.convertTo(probs, 8, 255, 0);
+	double sigma[3];
+	estimateNoise(image, sigma);
+
 	double min, max;
 	minMaxLoc(probs, &min, &max);
 	probs = (probs - min) * (256 / (max - min));
 
 	Mat display;
 	probs.convertTo(display, CV_8UC1, 255.0, 0);
-	//applyColorMap(display, display, cv::COLORMAP_JET);
-	//imshow("imagesc", display);
 
 
 	graph = vector<Vertex>(pixel_number + 2);

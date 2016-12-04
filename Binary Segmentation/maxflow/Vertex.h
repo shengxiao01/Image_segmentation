@@ -43,6 +43,7 @@ public:
 	friend class Maxflow_rtf;
 	friend class Maxflow_pr;
 	friend class Maxflow_hpr_gap;
+	friend class Maxflow_ff;
 
 };
 
